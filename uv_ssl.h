@@ -80,7 +80,7 @@ int uv_ssl_listen(uv_ssl_t *server, const int bk, uv_connection_cb on_connect );
 int uv_ssl_accept(uv_ssl_t* server, uv_ssl_t* client);
 int uv_ssl_read(uv_ssl_t* client, uv_alloc_cb alloc_cb , ssl_rd_cb on_read);
 int uv_ssl_write(uv_write_t* req, uv_ssl_t *client, uv_buf_t* buf, uv_write_cb on_write);
-int uv_ssl_shutdown(uv_ssl_t* k);
+int uv_ssl_shutdown(uv_ssl_t* session);
 
 
 static void ssl_begin(void)
@@ -376,30 +376,22 @@ void on_tcp_read(uv_stream_t *client, ssize_t nread, const uv_buf_t *buf)
     }
 }
 
-int uv_ssl_shutdown(uv_ssl_t* k)
+int uv_ssl_shutdown(uv_ssl_t* session)
 {
-    if(!k) {
+    if(!session) {
         return -1;
     }
 
-    if(k->socket_) {
-        free(k->socket_);
-        k->socket_ = 0;
-    }
+    free(session->socket_);
+    session->socket_ = 0;
 
-    if(k->ssl) {
-        SSL_free(k->ssl);
-        k->ssl = NULL;
-    }
+    SSL_free(session->ssl);
+    session->ssl = NULL;
 
-    if(k->ctx) { 
-        SSL_CTX_free(k->ctx);
-        k->ctx = NULL;
-    }
+    SSL_CTX_free(session->ctx);
+    session->ctx = NULL;
 
-    if(k->app_bio_) {
-        BIO_free(k->app_bio_);
-    }
+    BIO_free(session->app_bio_);
     uv__ssl_end();
     return 0;
 }
