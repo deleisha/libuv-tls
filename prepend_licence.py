@@ -29,7 +29,7 @@ LICENSE = '''
 '''
 
 if len(sys.argv) < 2:
-    sys.stderr.write('Usage: sys.argv[0] ')
+    sys.stderr.write('usage: ' + sys.argv[0] + ' file.c\n' )
     sys.exit(1)
 
 with file(sys.argv[1], 'r') as original: data = original.read()
