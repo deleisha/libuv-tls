@@ -6,7 +6,9 @@ The TLS work is complete for server but TLS client interface and DTLS support ne
 
 TODO:
 include licensing terms which will be MIT
+
 Improve error handling - may be introducing our own enum
+
 Add renegotiation feature
 
 
