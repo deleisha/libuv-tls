@@ -11,3 +11,8 @@ The TLS work is complete for server but TLS client interface and DTLS support ne
 - Improve uv_ssl_shutdown
 
 
+
+### TEST:
+To test the echo server, generate the test cert snd key using
+
+```openssl req -x509 -newkey rsa:2048 -keyout server-key.pem -out server-cert.pem```
