@@ -235,7 +235,7 @@ int uv__ssl_err_hdlr(uv_ssl_t* k, uv_stream_t* client, const int err_code)
 int uv__ssl_handshake(uv_ssl_t* ssl_s, uv_stream_t* client)
 {
     assert(ssl_s);
-    if ( (ssl_s->op_state & STATE_READ) || (ssl_s->op_state & STATE_WRITE)) {
+    if ( ssl_s->op_state & STATE_IO) {
         return 1; //1 connotates handshakes is done, Need improvement
     }
     
@@ -244,7 +244,7 @@ int uv__ssl_handshake(uv_ssl_t* ssl_s, uv_stream_t* client)
 
     if(rv == 1) {
         //flush any pending data
-        ssl_s->op_state = STATE_READ | STATE_WRITE;
+        ssl_s->op_state = STATE_IO;
         stay_uptodate(ssl_s, client, uv__ssl_alloc);
         return 1;
     }
@@ -262,7 +262,7 @@ int uv__ssl_read(uv_ssl_t* ssl_s, uv_stream_t* client, uv_buf_t* dcrypted, int s
 
 
     //check if handshake was complete
-    if( !(ssl_s->op_state & (STATE_READ |STATE_WRITE))) {
+    if( !(ssl_s->op_state & STATE_IO)) {
         uv__ssl_handshake(ssl_s, client);
     }
     
@@ -332,7 +332,7 @@ int uv__ssl_write(uv_ssl_t* ssl_s, uv_stream_t* client, uv_buf_t *encrypted)
     assert(ssl_s);
 
     //check if handshake was complete
-    if( !(ssl_s->op_state & (STATE_READ |STATE_WRITE))) {
+    if( !(ssl_s->op_state & STATE_IO )) {
         uv__ssl_handshake(ssl_s, client);
     }
 

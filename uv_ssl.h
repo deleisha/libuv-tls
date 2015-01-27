@@ -44,11 +44,10 @@ extern "C" {
 
 
 enum uv_ssl_state {
-    STATE_INIT = 0x0
+    STATE_INIT         = 0x0
     ,STATE_HANDSHAKING = 0x1
-    ,STATE_READ = 0x2
-    ,STATE_WRITE = 0x4
-    ,STATE_CLOSING = 0x8 // This means closed state also
+    ,STATE_IO          = 0x2 //read or write mode
+    ,STATE_CLOSING     = 0x4 // This means closed state also
 };
 
 
