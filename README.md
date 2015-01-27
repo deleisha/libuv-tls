@@ -24,4 +24,4 @@ Now the echo server is compiled and started and we can start sending some data u
 ```openssl s_client -connect address:8000```
 
 
-where address and your ip address.
+where address is your ip address.
