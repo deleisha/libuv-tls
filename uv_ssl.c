@@ -39,6 +39,7 @@ static int uv__ssl_verify_peer(int ok, X509_STORE_CTX* ctx)
     return 1;
 }
 
+
 /*
  * Assumes the name and key of the server
  * This forces users to create/deploy their certificate and key
@@ -48,55 +49,58 @@ static int uv__ssl_verify_peer(int ok, X509_STORE_CTX* ctx)
 #define CERTFILE "server-cert.pem"
 #define KEYFILE "server-key.pem"
 
-static int uv_ssl_ctx_init(uv_ssl_t* k)
+static int uv_ssl_ctx_init(uv_ssl_t* tls)
 {
     //Currently we support only TLS, No DTLS
     //TODO: Enhance it later to work for both, should be easy
-    k->ctx = SSL_CTX_new(SSLv23_method());
-    if(!k->ctx) {
+    tls->ctx = SSL_CTX_new(SSLv23_method());
+    if(!tls->ctx) {
         ERR_print_errors_fp(stderr);
         return -1;
     }
     
-    SSL_CTX_set_options(k->ctx, SSL_OP_NO_SSLv2);
-    SSL_CTX_set_options(k->ctx, SSL_OP_NO_SSLv3);
-//    SSL_CTX_set_options(k->ctx, SSL_OP_NO_TLSv1);
-//    SSL_CTX_set_options(k->ctx, SSL_OP_NO_TLSv1_1);
+    SSL_CTX_set_options(tls->ctx, SSL_OP_NO_SSLv2);
+    SSL_CTX_set_options(tls->ctx, SSL_OP_NO_SSLv3);
+//    SSL_CTX_set_options(tls->ctx, SSL_OP_NO_TLSv1);
+//    SSL_CTX_set_options(tls->ctx, SSL_OP_NO_TLSv1_1);
 //
 
 
-    SSL_CTX_set_mode(k->ctx, SSL_MODE_RELEASE_BUFFERS);
+    SSL_CTX_set_mode(tls->ctx, SSL_MODE_AUTO_RETRY |
+         SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER     |
+         SSL_MODE_ENABLE_PARTIAL_WRITE);
+
+
+
+
+    SSL_CTX_set_mode(tls->ctx, SSL_MODE_RELEASE_BUFFERS);
 
     int r = 0;
     //TODO: Change this later, no hardcoding 
-    r = SSL_CTX_set_cipher_list(k->ctx, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
+    r = SSL_CTX_set_cipher_list(tls->ctx, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
     if(r != 1) {
         ERR_print_errors_fp(stderr);
-        return -2;
     }
 
-    SSL_CTX_set_verify(k->ctx, SSL_VERIFY_NONE, uv__ssl_verify_peer);
+    SSL_CTX_set_verify(tls->ctx, SSL_VERIFY_NONE, uv__ssl_verify_peer);
 
 
     /* certificate file; contains also the public key
      * */
-    r = SSL_CTX_use_certificate_file(k->ctx, CERTFILE, SSL_FILETYPE_PEM);
+    r = SSL_CTX_use_certificate_file(tls->ctx, CERTFILE, SSL_FILETYPE_PEM);
     if(r != 1) {
         ERR_print_errors_fp(stderr);
-        return -4;
     }
 
-    r = SSL_CTX_use_PrivateKey_file(k->ctx, KEYFILE, SSL_FILETYPE_PEM);
+    r = SSL_CTX_use_PrivateKey_file(tls->ctx, KEYFILE, SSL_FILETYPE_PEM);
     if(r != 1) {
         ERR_print_errors_fp(stderr);
-        return -5;
     }
 
-    r = SSL_CTX_check_private_key(k->ctx);
+    r = SSL_CTX_check_private_key(tls->ctx);
     if(r != 1)
     {
         ERR_print_errors_fp(stderr);
-        return -6;
     }
 
     return 0;
@@ -130,15 +134,11 @@ int uv_ssl_init(uv_loop_t *loop, uv_ssl_t *strm)
 
     //use default buf size for now.
     if( !BIO_new_bio_pair(&(strm->ssl_bio_), 0, &(strm->app_bio_), 0)) {
-        return -2;
+        return  -1;
     }
 
 
     SSL_set_bio(strm->ssl, strm->ssl_bio_, strm->ssl_bio_);
-    //Move this to Ctx part
-    SSL_set_mode( strm->ssl, SSL_MODE_AUTO_RETRY |
-            SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER |
-            SSL_MODE_ENABLE_PARTIAL_WRITE);
 
     //TODO:push these parts in listen or connect
     /* either use the server or client part of the
@@ -158,7 +158,7 @@ static void uv__ssl_end(void)
     CRYPTO_cleanup_all_ex_data();
 }
 
-void uv_ssl_write_cb(uv_write_t *req, int status)
+void uv__ssl_write_cb(uv_write_t *req, int status)
 {
     if(!status && req) {
         free(req);
@@ -185,7 +185,7 @@ void stay_uptodate(uv_ssl_t *sserver, uv_stream_t* client, uv_alloc_cb uv__ssl_a
         assert(rv);
 
         uv_write_t * req = (uv_write_t*)malloc(sizeof *req);
-        uv_write(req, (uv_stream_t*)client, &mybuf, 1, uv_ssl_write_cb);
+        uv_write(req, (uv_stream_t*)client, &mybuf, 1, uv__ssl_write_cb);
         //write to client BIO
         
         if( mybuf.base ) {
@@ -204,9 +204,6 @@ static void uv__ssl_alloc(uv_handle_t *handle, size_t size, uv_buf_t *buf)
 }
 
 
-
-
-
 //handle only non fatal error
 int uv__ssl_err_hdlr(uv_ssl_t* k, uv_stream_t* client, const int err_code)
 {
@@ -215,20 +212,19 @@ int uv__ssl_err_hdlr(uv_ssl_t* k, uv_stream_t* client, const int err_code)
     }
 
     switch (SSL_get_error(k->ssl, err_code)) {
-        case SSL_ERROR_NONE:
-        case SSL_ERROR_SSL:
-            ERR_print_errors_fp(stderr);
+        case SSL_ERROR_NONE: //0 
+        case SSL_ERROR_SSL:  // 1
             //don't break, flush data first
 
-        case SSL_ERROR_WANT_READ:
-        case SSL_ERROR_WANT_WRITE:
-        case SSL_ERROR_WANT_X509_LOOKUP:
+        case SSL_ERROR_WANT_READ: // 2
+        case SSL_ERROR_WANT_WRITE: // 3
+        case SSL_ERROR_WANT_X509_LOOKUP:  // 4
             stay_uptodate(k, client, uv__ssl_alloc);
             break;
-        case SSL_ERROR_ZERO_RETURN:
-        case SSL_ERROR_SYSCALL:
-        case SSL_ERROR_WANT_CONNECT:
-        case SSL_ERROR_WANT_ACCEPT:
+        case SSL_ERROR_ZERO_RETURN: // 5
+        case SSL_ERROR_SYSCALL: //6
+        case SSL_ERROR_WANT_CONNECT: //7 
+        case SSL_ERROR_WANT_ACCEPT: //8
         default:
             return err_code;
     }
@@ -268,7 +264,6 @@ int uv__ssl_read(uv_ssl_t* ssl_s, uv_stream_t* client, uv_buf_t* dcrypted, int s
     //check if handshake was complete
     if( !(ssl_s->op_state & (STATE_READ |STATE_WRITE))) {
         uv__ssl_handshake(ssl_s, client);
-        //return  -5; //Error handling to be done
     }
     
     int rv = SSL_read(ssl_s->ssl, dcrypted->base, sz);
@@ -285,10 +280,7 @@ static void on_close(uv_handle_t* handle)
 {
     free(handle);
     handle = 0;
-    fprintf(stderr, "disconnected\n");
 }
-
-
 
 
 void on_tcp_read(uv_stream_t *client, ssize_t nread, const uv_buf_t *buf)
@@ -339,7 +331,6 @@ int uv__ssl_write(uv_ssl_t* ssl_s, uv_stream_t* client, uv_buf_t *encrypted)
 {
     assert(ssl_s);
 
-
     //check if handshake was complete
     if( !(ssl_s->op_state & (STATE_READ |STATE_WRITE))) {
         uv__ssl_handshake(ssl_s, client);
@@ -353,7 +344,7 @@ int uv__ssl_write(uv_ssl_t* ssl_s, uv_stream_t* client, uv_buf_t *encrypted)
     if( (pending = BIO_pending(ssl_s->app_bio_) ) > 0)
     {
         rv = BIO_read(ssl_s->app_bio_, encrypted->base, pending);
-        encrypted->base[rv] = '0';
+        encrypted->base[rv] = '\0';
         encrypted->len = rv;
     }
 
@@ -403,6 +394,8 @@ int uv_ssl_accept(uv_ssl_t* server, uv_ssl_t* client)
     client->peer = server;
     return 0;
 }
+
+
 int uv_ssl_listen(uv_ssl_t *server,
     const int backlog,
     uv_connection_cb on_connect )
