@@ -16,3 +16,8 @@ The TLS work is complete for server but TLS client interface and DTLS support ne
 To test the echo server, generate the test cert snd key using
 
 ```openssl req -x509 -newkey rsa:2048 -keyout server-key.pem -out server-cert.pem```
+
+```make && ./echo```
+Now the echo server is compiled and started and we can start sending some data using
+```openssl s_client -connect address:8000```
+where address and your ip address.
