@@ -23,6 +23,17 @@
 ***********************************************************************************/
 #include "uv_ssl.h"
 
+void on_write(uv_write_t *req, int status)
+{
+    if(!status && req) {
+        free(req);
+        req = 0;
+    }
+}
+
+
+
+
 //Callback for testing
 void on_read(uv_ssl_t* h, int nread, uv_buf_t* dcrypted)
 {
@@ -34,6 +45,17 @@ void on_read(uv_ssl_t* h, int nread, uv_buf_t* dcrypted)
     fprintf( stderr, "decrypted = %s", dcrypted->base);
     uv_ssl_write(rq, h, dcrypted, on_write);
 }
+
+void alloc_cb(uv_handle_t *handle, size_t size, uv_buf_t *buf)
+{
+    buf->base = (char*)malloc(size);
+    memset(buf->base, 0, size);
+    buf->len = size;
+    assert(buf->base != NULL && "Memory allocation failed");
+}
+
+
+
 
 //TEST CODE for the lib
 void on_connect(uv_stream_t *server, int status)
