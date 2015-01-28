@@ -231,7 +231,6 @@ int uv__ssl_err_hdlr(uv_ssl_t* k, uv_stream_t* client, const int err_code)
     return err_code;
 }
 
-//To avoid function call here, introduce a state enum 
 int uv__ssl_handshake(uv_ssl_t* ssl_s, uv_stream_t* client)
 {
     assert(ssl_s);
@@ -267,9 +266,9 @@ int uv__ssl_read(uv_ssl_t* ssl_s, uv_stream_t* client, uv_buf_t* dcrypted, int s
     }
     
     int rv = SSL_read(ssl_s->ssl, dcrypted->base, sz);
-    dcrypted->len = sz;
 
     uv__ssl_err_hdlr(ssl_s, client, rv);
+    dcrypted->len = rv;
     ssl_s->rd_cb(ssl_s->peer, rv, dcrypted);
 
     return rv;
@@ -327,7 +326,7 @@ int uv_ssl_shutdown(uv_ssl_t* session)
 }
 
 //write to ssl session
-int uv__ssl_write(uv_ssl_t* ssl_s, uv_stream_t* client, uv_buf_t *encrypted)
+int uv__ssl_write(uv_ssl_t* ssl_s, uv_stream_t* client, uv_buf_t *data2write)
 {
     assert(ssl_s);
 
@@ -337,15 +336,15 @@ int uv__ssl_write(uv_ssl_t* ssl_s, uv_stream_t* client, uv_buf_t *encrypted)
     }
 
     //this should give me something to write to client
-    int rv = SSL_write(ssl_s->ssl, encrypted->base, encrypted->len);
+    int rv = SSL_write(ssl_s->ssl, data2write->base, data2write->len);
     uv__ssl_err_hdlr(ssl_s, client, rv);
 
     int pending = 0;
     if( (pending = BIO_pending(ssl_s->app_bio_) ) > 0)
     {
-        rv = BIO_read(ssl_s->app_bio_, encrypted->base, pending);
-        encrypted->base[rv] = '\0';
-        encrypted->len = rv;
+        rv = BIO_read(ssl_s->app_bio_, data2write->base, pending);
+        data2write->base[rv] = '\0';
+        data2write->len = rv;
     }
 
     return rv;
