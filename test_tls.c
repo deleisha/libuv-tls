@@ -40,7 +40,7 @@ void on_read(uv_ssl_t* h, int nread, uv_buf_t* dcrypted)
     }
     uv_write_t *rq = (uv_write_t*)malloc(sizeof(*rq));
     assert(rq != 0);
-    fprintf( stderr, "decrypted = %s", dcrypted->base);
+    fprintf( stderr, "decrypted = %s and len = %zu\n", dcrypted->base, dcrypted->len);
     uv_ssl_write(rq, h, dcrypted, on_write);
 }
 
@@ -51,7 +51,6 @@ void alloc_cb(uv_handle_t *handle, size_t size, uv_buf_t *buf)
     buf->len = size;
     assert(buf->base != NULL && "Memory allocation failed");
 }
-
 
 
 

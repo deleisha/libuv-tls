@@ -91,8 +91,9 @@ static int uv_ssl_ctx_init(uv_ssl_t* tls)
     SSL_CTX_set_mode(tls->ctx, SSL_MODE_RELEASE_BUFFERS);
 
     int r = 0;
+#define CIPHERS    "ALL:!EXPORT:!LOW"
     //TODO: Change this later, no hardcoding 
-    r = SSL_CTX_set_cipher_list(tls->ctx, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
+    r = SSL_CTX_set_cipher_list(tls->ctx, CIPHERS);
     if(r != 1) {
         ERR_print_errors_fp(stderr);
     }
@@ -280,6 +281,8 @@ int uv__ssl_read(uv_ssl_t* srvr, uv_stream_t* client, uv_buf_t* dcrypted, int sz
         uv__ssl_handshake(srvr, client);
     }
     
+    //clean the slate
+    memset( dcrypted->base, 0, sz);
     int rv = SSL_read(srvr->ssl, dcrypted->base, sz);
 
     uv__ssl_err_hdlr(srvr, client, rv);
