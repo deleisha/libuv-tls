@@ -30,6 +30,7 @@ static void ssl_begin(void)
     SSL_load_error_strings();
     ERR_load_BIO_strings();
     OpenSSL_add_all_algorithms();
+    ERR_load_crypto_strings();
 }
 
 
@@ -38,6 +39,20 @@ static int uv__ssl_verify_peer(int ok, X509_STORE_CTX* ctx)
 {
     return 1;
 }
+
+
+//shutdown the ssl session then stream
+int uv_ssl_close(uv_ssl_t* session, ssl_close_cb cb)
+{
+//    if( !SSL_shutdown(session->ssl)) {
+//    }
+//    session->close_cb = cb;
+    //TODO: callback
+    uv_close( (uv_handle_t*)uv_ssl_get_stream(session), NULL);
+    return 0;
+}
+
+
 
 
 /*
@@ -154,7 +169,6 @@ static void uv__ssl_end(void)
     CONF_modules_unload(1);
     ERR_free_strings();
     EVP_cleanup();
-    sk_SSL_COMP_free(SSL_COMP_get_compression_methods());
     CRYPTO_cleanup_all_ex_data();
 }
 
@@ -182,7 +196,7 @@ void stay_uptodate(uv_ssl_t *sserver, uv_stream_t* client, uv_alloc_cb uv__ssl_a
         }
 
         int rv = BIO_read(sserver->app_bio_, mybuf.base, pending);
-        assert(rv);
+        assert( rv > 0 );
 
         uv_write_t * req = (uv_write_t*)malloc(sizeof *req);
         uv_write(req, (uv_stream_t*)client, &mybuf, 1, uv__ssl_write_cb);
@@ -198,9 +212,9 @@ void stay_uptodate(uv_ssl_t *sserver, uv_stream_t* client, uv_alloc_cb uv__ssl_a
 static void uv__ssl_alloc(uv_handle_t *handle, size_t size, uv_buf_t *buf)
 {
     buf->base = (char*)malloc(size);
+    assert(buf->base != NULL && "Memory allocation failed");
     memset(buf->base, 0, size);
     buf->len = size;
-    assert(buf->base != NULL && "Memory allocation failed");
 }
 
 
@@ -235,7 +249,7 @@ int uv__ssl_handshake(uv_ssl_t* ssl_s, uv_stream_t* client)
 {
     assert(ssl_s);
     if ( ssl_s->op_state & STATE_IO) {
-        return 1; //1 connotates handshakes is done, Need improvement
+        return 1; //1 connotates handshakes is done, Need reporting
     }
     
     int rv = SSL_do_handshake(ssl_s->ssl);
@@ -249,27 +263,28 @@ int uv__ssl_handshake(uv_ssl_t* ssl_s, uv_stream_t* client)
     }
     uv__ssl_err_hdlr(ssl_s, client, rv);
 
+    //handshake take multiple trip, Check if it completed now
     if(ssl_s->op_state == STATE_HANDSHAKING) {
         SSL_do_handshake(ssl_s->ssl);
     }
     return rv;
 }
 
-int uv__ssl_read(uv_ssl_t* ssl_s, uv_stream_t* client, uv_buf_t* dcrypted, int sz)
+int uv__ssl_read(uv_ssl_t* srvr, uv_stream_t* client, uv_buf_t* dcrypted, int sz)
 {
-    assert(ssl_s);
+    assert(srvr);
 
 
     //check if handshake was complete
-    if( !(ssl_s->op_state & STATE_IO)) {
-        uv__ssl_handshake(ssl_s, client);
+    if( !(srvr->op_state & STATE_IO)) {
+        uv__ssl_handshake(srvr, client);
     }
     
-    int rv = SSL_read(ssl_s->ssl, dcrypted->base, sz);
+    int rv = SSL_read(srvr->ssl, dcrypted->base, sz);
 
-    uv__ssl_err_hdlr(ssl_s, client, rv);
+    uv__ssl_err_hdlr(srvr, client, rv);
     dcrypted->len = rv;
-    ssl_s->rd_cb(ssl_s->peer, rv, dcrypted);
+    srvr->rd_cb(srvr->peer, rv, dcrypted);
 
     return rv;
 }
@@ -284,6 +299,7 @@ static void on_close(uv_handle_t* handle)
 
 void on_tcp_read(uv_stream_t *client, ssize_t nread, const uv_buf_t *buf)
 {
+    //TODO: handle the error well
     if( nread <= 0 ) {
         if (nread == UV_EOF) {
             fprintf(stderr, "read_cb: closed client connection\n");
@@ -291,7 +307,7 @@ void on_tcp_read(uv_stream_t *client, ssize_t nread, const uv_buf_t *buf)
         else {
             fprintf(stderr, "read_cb: Read Error  %s\n", uv_strerror(nread));
         }
-        uv_close((uv_handle_t*) client, on_close);
+        uv_close((uv_handle_t*) client, NULL /*on_close*/);
     }
     else {
         uv_ssl_t *s_ssl = (uv_ssl_t*) client->data;
@@ -353,28 +369,26 @@ int uv__ssl_write(uv_ssl_t* ssl_s, uv_stream_t* client, uv_buf_t *data2write)
 int uv_ssl_write(uv_write_t* req, uv_ssl_t *client, uv_buf_t *buf, uv_write_cb uv_ssl_write_cb)
 {
 
-    uv_ssl_t* s = (uv_ssl_t*)client->socket_->data;
-    assert(s);
-    uv__ssl_write(s, (uv_stream_t*)client->socket_, buf);
+    uv_ssl_t* srvr = (uv_ssl_t*)client->peer;
+    assert(srvr);
+    uv__ssl_write(srvr, uv_ssl_get_stream(client), buf);
 
-    return uv_write(req, (uv_stream_t*)client->socket_, buf, 1, uv_ssl_write_cb);
+    return uv_write(req, uv_ssl_get_stream(client), buf, 1, uv_ssl_write_cb);
 }
 
 
 int uv_ssl_read(uv_ssl_t* sclient, uv_alloc_cb uv__ssl_alloc , ssl_rd_cb on_read)
 {
-    if(!sclient) {
-        return -1;
-    }
+    assert( sclient != NULL);
 
     //extract the ssl to read from
     uv_ssl_t* srvr_ssl = (uv_ssl_t*)sclient->peer;
     assert(srvr_ssl);
-    srvr_ssl->socket_->data = sclient;
+
+    //srvr_ssl->socket_->data = sclient;
     srvr_ssl->rd_cb = on_read;
 
-    return  uv_read_start(
-              (uv_stream_t*)sclient->socket_, uv__ssl_alloc, on_tcp_read);
+    return uv_read_start(uv_ssl_get_stream(sclient), uv__ssl_alloc, on_tcp_read);
 }
 
 
@@ -382,10 +396,10 @@ int uv_ssl_accept(uv_ssl_t* server, uv_ssl_t* client)
 {
     assert( server != 0);
 
-    uv_stream_t* stream = (uv_stream_t*)client->socket_;
+    uv_stream_t* stream = uv_ssl_get_stream(client);
     assert(stream != 0);
 
-    int r = uv_accept((uv_stream_t*)server->socket_, stream);
+    int r = uv_accept( uv_ssl_get_stream(server), stream);
     if (r) {
         return r;
     }
@@ -399,12 +413,11 @@ int uv_ssl_listen(uv_ssl_t *server,
     const int backlog,
     uv_connection_cb on_connect )
 {
-    //Now set the ssl for listening mode
+    //set the ssl for listening mode
     SSL_set_accept_state(server->ssl);
-    uv_stream_t *strm = (uv_stream_t*)server->socket_;
+    uv_stream_t *strm = uv_ssl_get_stream(server);
 
     strm->data = server;
     assert( on_connect);
-    return uv_listen( (uv_stream_t*)strm, backlog, on_connect);
+    return uv_listen( strm, backlog, on_connect);
 }
-

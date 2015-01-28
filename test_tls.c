@@ -32,9 +32,6 @@ void on_write(uv_write_t *req, int status)
     }
 }
 
-
-
-
 //Callback for testing
 void on_read(uv_ssl_t* h, int nread, uv_buf_t* dcrypted)
 {
@@ -70,8 +67,6 @@ void on_connect(uv_stream_t *server, int status)
     //memory being freed at on_close
     uv_ssl_t *sclient = (uv_ssl_t*) malloc(sizeof(*sclient));
     uv_ssl_init(server->loop, sclient);
-    //For testing again
-    SSL_set_connect_state(sclient->ssl);
 
     sclient->socket_->data = server_ssl;
     int r = uv_ssl_accept(server_ssl, sclient);

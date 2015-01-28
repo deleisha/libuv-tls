@@ -30,8 +30,6 @@ extern "C" {
 #endif
 
 
-
-
 #include "libuv/include/uv.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -55,6 +53,7 @@ enum uv_ssl_state {
 typedef struct uv_ssl_s uv_ssl_t;
 
 typedef void (*ssl_rd_cb)(uv_ssl_t* h, int nrd, uv_buf_t* dcrypted);
+typedef void (*ssl_close_cb)(uv_ssl_t* h);
 
 //Most used members are put first
 struct uv_ssl_s {
@@ -80,7 +79,14 @@ int uv_ssl_listen(uv_ssl_t *server, const int bk, uv_connection_cb on_connect );
 int uv_ssl_accept(uv_ssl_t* server, uv_ssl_t* client);
 int uv_ssl_read(uv_ssl_t* client, uv_alloc_cb alloc_cb , ssl_rd_cb on_read);
 int uv_ssl_write(uv_write_t* req, uv_ssl_t *client, uv_buf_t* buf, uv_write_cb on_write);
+int uv_ssl_close(uv_ssl_t* session, ssl_close_cb close_cb);
 int uv_ssl_shutdown(uv_ssl_t* session);
+
+//Auxilary 
+inline uv_stream_t* uv_ssl_get_stream(uv_ssl_t* tls)
+{
+    return  (uv_stream_t*) tls->socket_;
+}
 
 
 
