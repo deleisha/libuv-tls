@@ -53,8 +53,6 @@ int uv_ssl_close(uv_ssl_t* session, ssl_close_cb cb)
 }
 
 
-
-
 /*
  * Assumes the name and key of the server
  * This forces users to create/deploy their certificate and key
@@ -114,8 +112,7 @@ static int uv_ssl_ctx_init(uv_ssl_t* tls)
     }
 
     r = SSL_CTX_check_private_key(tls->ctx);
-    if(r != 1)
-    {
+    if(r != 1) {
         ERR_print_errors_fp(stderr);
     }
 
@@ -189,8 +186,7 @@ Read data from application side of BIO and write it to the connection(network)
 void stay_uptodate(uv_ssl_t *sserver, uv_stream_t* client, uv_alloc_cb uv__ssl_alloc)
 {
     size_t pending = 0;
-    if( (pending = BIO_ctrl_pending(sserver->app_bio_) ) > (size_t) 0)
-    {
+    if( (pending = BIO_ctrl_pending(sserver->app_bio_) ) > (size_t) 0) {
         uv_buf_t mybuf;
         if(uv__ssl_alloc) {
             uv__ssl_alloc((uv_handle_t*)client, pending, &mybuf);
@@ -227,7 +223,7 @@ int uv__ssl_err_hdlr(uv_ssl_t* k, uv_stream_t* client, const int err_code)
     }
 
     switch (SSL_get_error(k->ssl, err_code)) {
-        case SSL_ERROR_NONE: //0 
+        case SSL_ERROR_NONE: //0
         case SSL_ERROR_SSL:  // 1
             //don't break, flush data first
 
@@ -238,7 +234,7 @@ int uv__ssl_err_hdlr(uv_ssl_t* k, uv_stream_t* client, const int err_code)
             break;
         case SSL_ERROR_ZERO_RETURN: // 5
         case SSL_ERROR_SYSCALL: //6
-        case SSL_ERROR_WANT_CONNECT: //7 
+        case SSL_ERROR_WANT_CONNECT: //7
         case SSL_ERROR_WANT_ACCEPT: //8
         default:
             return err_code;
@@ -359,8 +355,7 @@ int uv__ssl_write(uv_ssl_t* ssl_s, uv_stream_t* client, uv_buf_t *data2write)
     uv__ssl_err_hdlr(ssl_s, client, rv);
 
     int pending = 0;
-    if( (pending = BIO_pending(ssl_s->app_bio_) ) > 0)
-    {
+    if( (pending = BIO_pending(ssl_s->app_bio_) ) > 0) {
         rv = BIO_read(ssl_s->app_bio_, data2write->base, pending);
         data2write->base[rv] = '\0';
         data2write->len = rv;
@@ -380,7 +375,7 @@ int uv_ssl_write(uv_write_t* req, uv_ssl_t *client, uv_buf_t *buf, uv_write_cb u
 }
 
 
-int uv_ssl_read(uv_ssl_t* sclient, uv_alloc_cb uv__ssl_alloc , ssl_rd_cb on_read)
+int uv_ssl_read(uv_ssl_t* sclient, uv_alloc_cb uv__ssl_alloc, ssl_rd_cb on_read)
 {
     assert( sclient != NULL);
 
