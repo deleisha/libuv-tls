@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
 **////////////////////////////////////////////////////////////////////////////*/
-#include "uv_ssl.h"
+#include "uv_tls.h"
 
 void on_write(uv_write_t *req, int status)
 {
@@ -33,7 +33,7 @@ void on_write(uv_write_t *req, int status)
 }
 
 //Callback for testing
-void on_read(uv_ssl_t* h, int nread, uv_buf_t* dcrypted)
+void on_read(uv_tls_t* h, int nread, uv_buf_t* dcrypted)
 {
     if( nread <= 0 ) {
         return;
@@ -41,7 +41,7 @@ void on_read(uv_ssl_t* h, int nread, uv_buf_t* dcrypted)
     uv_write_t *rq = (uv_write_t*)malloc(sizeof(*rq));
     assert(rq != 0);
     fprintf( stderr, "decrypted = %s and len = %zu\n", dcrypted->base, dcrypted->len);
-    uv_ssl_write(rq, h, dcrypted, on_write);
+    uv_tls_write(rq, h, dcrypted, on_write);
 }
 
 void alloc_cb(uv_handle_t *handle, size_t size, uv_buf_t *buf)
@@ -61,16 +61,16 @@ void on_connect(uv_stream_t *server, int status)
         return;
     }
 
-    uv_ssl_t * server_ssl = (uv_ssl_t*)server->data;
+    uv_tls_t * server_ssl = (uv_tls_t*)server->data;
 
     //memory being freed at on_close
-    uv_ssl_t *sclient = (uv_ssl_t*) malloc(sizeof(*sclient));
-    uv_ssl_init(server->loop, sclient);
+    uv_tls_t *sclient = (uv_tls_t*) malloc(sizeof(*sclient));
+    uv_tls_init(server->loop, sclient);
 
     sclient->socket_->data = server_ssl;
-    int r = uv_ssl_accept(server_ssl, sclient);
+    int r = uv_tls_accept(server_ssl, sclient);
     if(!r) {
-        uv_ssl_read(sclient, alloc_cb , on_read);
+        uv_tls_read(sclient, alloc_cb , on_read);
     }
 }
 
@@ -79,8 +79,8 @@ int main()
 {
     uv_loop_t *loop = uv_default_loop();
 
-    uv_ssl_t *server = (uv_ssl_t*)malloc(sizeof *server);
-    if(uv_ssl_init(loop, server) < 0) {
+    uv_tls_t *server = (uv_tls_t*)malloc(sizeof *server);
+    if(uv_tls_init(loop, server) < 0) {
         free(server);
         server = 0;
         return  -1;
@@ -95,7 +95,7 @@ int main()
         fprintf( stderr, "bind: %s\n", uv_strerror(r));
     }
 
-    int rv = uv_ssl_listen(server, 128, on_connect);
+    int rv = uv_tls_listen(server, 128, on_connect);
     if( rv ) {
         fprintf( stderr, "listen: %s\n", uv_strerror(rv));
     }
@@ -104,7 +104,7 @@ int main()
     uv_run(loop, UV_RUN_DEFAULT);
 
 
-    uv_ssl_shutdown(server);
+    uv_tls_shutdown(server);
     free (server);
     server = 0;
 

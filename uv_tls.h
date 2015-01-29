@@ -22,8 +22,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
 **////////////////////////////////////////////////////////////////////////////*/
-#ifndef __UV_SSL_H__
-#define __UV_SSL_H__
+#ifndef __UV_TLS_H__
+#define __UV_TLS_H__
 
 #ifdef __cplusplus
 extern "C" {
@@ -42,7 +42,7 @@ extern "C" {
 #include <openssl/engine.h>
 
 
-enum uv_ssl_state {
+enum uv_tls_state {
     STATE_INIT         = 0x0
     ,STATE_HANDSHAKING = 0x1
     ,STATE_IO          = 0x2 //read or write mode
@@ -50,20 +50,20 @@ enum uv_ssl_state {
 };
 
 
-typedef struct uv_ssl_s uv_ssl_t;
+typedef struct uv_tls_s uv_tls_t;
 
-typedef void (*ssl_rd_cb)(uv_ssl_t* h, int nrd, uv_buf_t* dcrypted);
-typedef void (*ssl_close_cb)(uv_ssl_t* h);
+typedef void (*ssl_rd_cb)(uv_tls_t* h, int nrd, uv_buf_t* dcrypted);
+typedef void (*ssl_close_cb)(uv_tls_t* h);
 
 //Most used members are put first
-struct uv_ssl_s {
+struct uv_tls_s {
     uv_tcp_t  *socket_; //handle that encapsulate the socket
     BIO       *app_bio_; //This is our BIO, All IO should be through this
     SSL       *ssl;
     void      *data;   // Field for user data, the lib won't use this
     int       op_state; // operational state
     ssl_rd_cb rd_cb;
-    uv_ssl_t  *peer; //reference to connected peer
+    uv_tls_t  *peer; //reference to connected peer
     SSL_CTX   *ctx;
     BIO       *ssl_bio_; //the ssl BIO used only by openSSL
 };
@@ -74,16 +74,16 @@ struct uv_ssl_s {
 /*
  *Initialize the common part of SSL startup both for client and server
  */
-int uv_ssl_init(uv_loop_t* loop, uv_ssl_t* stream);
-int uv_ssl_listen(uv_ssl_t *server, const int bk, uv_connection_cb on_connect );
-int uv_ssl_accept(uv_ssl_t* server, uv_ssl_t* client);
-int uv_ssl_read(uv_ssl_t* client, uv_alloc_cb alloc_cb , ssl_rd_cb on_read);
-int uv_ssl_write(uv_write_t* req, uv_ssl_t *client, uv_buf_t* buf, uv_write_cb on_write);
-int uv_ssl_close(uv_ssl_t* session, ssl_close_cb close_cb);
-int uv_ssl_shutdown(uv_ssl_t* session);
+int uv_tls_init(uv_loop_t* loop, uv_tls_t* stream);
+int uv_tls_listen(uv_tls_t *server, const int bk, uv_connection_cb on_connect );
+int uv_tls_accept(uv_tls_t* server, uv_tls_t* client);
+int uv_tls_read(uv_tls_t* client, uv_alloc_cb alloc_cb , ssl_rd_cb on_read);
+int uv_tls_write(uv_write_t* req, uv_tls_t *client, uv_buf_t* buf, uv_write_cb on_write);
+int uv_tls_close(uv_tls_t* session, ssl_close_cb close_cb);
+int uv_tls_shutdown(uv_tls_t* session);
 
-//Auxilary 
-inline uv_stream_t* uv_ssl_get_stream(uv_ssl_t* tls)
+//Auxilary
+inline uv_stream_t* uv_tls_get_stream(uv_tls_t* tls)
 {
     return  (uv_stream_t*) tls->socket_;
 }
