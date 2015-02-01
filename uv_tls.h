@@ -57,15 +57,16 @@ typedef void (*ssl_close_cb)(uv_tls_t* h);
 
 //Most used members are put first
 struct uv_tls_s {
-    uv_tcp_t  *socket_; //handle that encapsulate the socket
-    BIO       *app_bio_; //This is our BIO, All IO should be through this
-    SSL       *ssl;
-    void      *data;   // Field for user data, the lib won't use this
-    int       op_state; // operational state
-    ssl_rd_cb rd_cb;
-    uv_tls_t  *peer; //reference to connected peer
-    SSL_CTX   *ctx;
-    BIO       *ssl_bio_; //the ssl BIO used only by openSSL
+    uv_tcp_t      *socket_; //handle that encapsulate the socket
+    BIO           *app_bio_; //This is our BIO, All IO should be through this
+    SSL           *ssl;
+    void          *data;   // Field for user data, the lib won't use this
+    int           op_state; // operational state
+    uv_tls_t      *peer; //reference to connected peer
+    ssl_rd_cb     rd_cb;
+    ssl_close_cb  close_cb;
+    SSL_CTX       *ctx;
+    BIO           *ssl_bio_; //the ssl BIO used only by openSSL
 };
 
 
@@ -81,12 +82,8 @@ int uv_tls_read(uv_tls_t* client, uv_alloc_cb alloc_cb , ssl_rd_cb on_read);
 int uv_tls_write(uv_write_t* req, uv_tls_t *client, uv_buf_t* buf, uv_write_cb on_write);
 int uv_tls_close(uv_tls_t* session, ssl_close_cb close_cb);
 int uv_tls_shutdown(uv_tls_t* session);
+uv_stream_t* uv_tls_get_stream(uv_tls_t* tls);
 
-//Auxilary
-inline uv_stream_t* uv_tls_get_stream(uv_tls_t* tls)
-{
-    return  (uv_stream_t*) tls->socket_;
-}
 
 
 
