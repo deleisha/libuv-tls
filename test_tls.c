@@ -33,15 +33,20 @@ void on_write(uv_write_t *req, int status)
 }
 
 //Callback for testing
-void on_read(uv_tls_t* h, int nread, uv_buf_t* dcrypted)
+void on_read(uv_tls_t* clnt, int nread, uv_buf_t* dcrypted)
 {
     if( nread <= 0 ) {
+        if( nread == UV_EOF) {
+            uv_tls_close(clnt, NULL);
+        }
+        else {
+            fprintf( stderr, "on_read: %s\n", uv_strerror(nread));
+        }
         return;
     }
     uv_write_t *rq = (uv_write_t*)malloc(sizeof(*rq));
     assert(rq != 0);
-    fprintf( stderr, "decrypted = %s and len = %zu\n", dcrypted->base, dcrypted->len);
-    uv_tls_write(rq, h, dcrypted, on_write);
+    uv_tls_write(rq, clnt, dcrypted, on_write);
 }
 
 void alloc_cb(uv_handle_t *handle, size_t size, uv_buf_t *buf)

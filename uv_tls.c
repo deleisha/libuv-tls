@@ -192,9 +192,10 @@ void stay_uptodate(uv_tls_t *sserver, uv_stream_t* client, uv_alloc_cb uv__tls_a
         int rv = BIO_read(sserver->app_bio_, mybuf.base, pending);
         assert( rv > 0 );
 
-        uv_write_t * req = (uv_write_t*)malloc(sizeof *req);
-        uv_write(req, (uv_stream_t*)client, &mybuf, 1, uv__tls_write_cb);
+        //uv_write_t * req = (uv_write_t*)malloc(sizeof *req);
+        //uv_try_write(req, (uv_stream_t*)client, &mybuf, 1);//, uv__tls_write_cb);
         
+        uv_try_write((uv_stream_t*)client, &mybuf, 1);//, uv__tls_write_cb);
         free(mybuf.base);
         mybuf.base = 0;
     }
