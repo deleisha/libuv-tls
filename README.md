@@ -7,8 +7,8 @@ The TLS work is complete for server but TLS client interface and DTLS support ne
 ### TODO:
 - Improve error handling - may be introducing our own enum
 - Add session resumption feature
-- Add code for uv_ssl_connect based on uv_connect
-- Improve uv_ssl_shutdown
+- Add code for uv_tls_connect based on uv_connect
+- Work on supporting DTLS support
 
 
 
