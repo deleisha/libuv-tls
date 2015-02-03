@@ -4,9 +4,8 @@ import sys
 
 LICENSE = '''
 /*//////////////////////////////////////////////////////////////////////////////
- * The MIT License (MIT)
 
- * Copyright (c) 2015  deleisha <dlmeetei@gmail.com>
+ * Copyright (c) 2015  deleisha and other libuv-tls contributors
 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -33,4 +32,4 @@ if len(sys.argv) < 2:
     sys.exit(1)
 
 with file(sys.argv[1], 'r') as original: data = original.read()
-with file(sys.argv[1], 'w') as modified: modified.write( LICENSE + data)
+with file(sys.argv[1], 'w') as modified: modified.write(LICENSE + '\n\n' + data)

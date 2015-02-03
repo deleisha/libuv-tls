@@ -1,8 +1,7 @@
 
 /*//////////////////////////////////////////////////////////////////////////////
- * The MIT License (MIT)
 
- * Copyright (c) 2015  deleisha <dlmeetei@gmail.com>
+ * Copyright (c) 2015  deleisha and other libuv-tls contributors
 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +21,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
 **////////////////////////////////////////////////////////////////////////////*/
+
+
 #include "uv_tls.h"
 
 void on_write(uv_write_t *req, int status)
@@ -32,12 +33,19 @@ void on_write(uv_write_t *req, int status)
     }
 }
 
+void on_close(uv_tls_t* h)
+{
+    free(h);
+    h = 0;
+}
+
+
 //Callback for testing
 void on_read(uv_tls_t* clnt, int nread, uv_buf_t* dcrypted)
 {
     if( nread <= 0 ) {
         if( nread == UV_EOF) {
-            uv_tls_close(clnt, NULL);
+            uv_tls_close(clnt, on_close);
         }
         else {
             fprintf( stderr, "on_read: %s\n", uv_strerror(nread));
@@ -115,3 +123,5 @@ int main()
 
     return EXIT_SUCCESS;
 }
+
+

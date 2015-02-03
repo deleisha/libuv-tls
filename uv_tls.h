@@ -1,8 +1,7 @@
 
 /*//////////////////////////////////////////////////////////////////////////////
- * The MIT License (MIT)
 
- * Copyright (c) 2015  deleisha <dlmeetei@gmail.com>
+ * Copyright (c) 2015  deleisha and other libuv-tls contributors
 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +21,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
 **////////////////////////////////////////////////////////////////////////////*/
+
+
 #ifndef __UV_TLS_H__
 #define __UV_TLS_H__
 
@@ -92,3 +93,5 @@ uv_stream_t* uv_tls_get_stream(uv_tls_t* tls);
 #endif
 
 #endif 
+
+

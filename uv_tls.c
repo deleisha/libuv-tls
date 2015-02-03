@@ -1,7 +1,7 @@
-/*//////////////////////////////////////////////////////////////////////////////
- * The MIT License (MIT)
 
- * Copyright (c) 2015  deleisha <dlmeetei@gmail.com>
+/*//////////////////////////////////////////////////////////////////////////////
+
+ * Copyright (c) 2015  deleisha and other libuv-tls contributors
 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,6 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
 **////////////////////////////////////////////////////////////////////////////*/
+
 
 #include "uv_tls.h"
 
@@ -74,6 +75,7 @@ static int uv_tls_ctx_init(uv_tls_t* tls)
 //
 
 
+//    SSL_CTX_set_options(tls->ctx, SSL_OP_NO_TICKET)
 //    SSL_CTX_set_session_cache_mode(tls->ctx, SSL_SESS_CACHE_OFF);
     SSL_CTX_set_mode(tls->ctx, SSL_MODE_AUTO_RETRY |
          SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER     |
@@ -466,3 +468,5 @@ int uv_tls_listen(uv_tls_t *server,
     assert( on_connect);
     return uv_listen( strm, backlog, on_connect);
 }
+
+
