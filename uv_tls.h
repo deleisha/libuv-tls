@@ -50,6 +50,12 @@ enum uv_tls_state {
     ,STATE_CLOSING     = 0x4 // This means closed state also
 };
 
+//Minimal error handling
+enum uv_tls_error {
+    ERR_TLS_ERROR = -1 //use OpenSSL error handling technique for this
+    ,ERR_TLS_OK
+};
+
 
 typedef struct uv_tls_s uv_tls_t;
 
@@ -75,6 +81,8 @@ struct uv_tls_s {
 
 /*
  *Initialize the common part of SSL startup both for client and server
+ Only uv_tls_init at max will return TLS engine related issue other will have
+ libuv error
  */
 int uv_tls_init(uv_loop_t* loop, uv_tls_t* stream);
 int uv_tls_listen(uv_tls_t *server, const int bk, uv_connection_cb on_connect );
@@ -83,6 +91,9 @@ int uv_tls_read(uv_tls_t* client, uv_alloc_cb alloc_cb , ssl_rd_cb on_read);
 int uv_tls_write(uv_write_t* req, uv_tls_t *client, uv_buf_t* buf, uv_write_cb on_write);
 int uv_tls_close(uv_tls_t* session, ssl_close_cb close_cb);
 int uv_tls_shutdown(uv_tls_t* session);
+
+
+//Auxilary functions
 uv_stream_t* uv_tls_get_stream(uv_tls_t* tls);
 
 
@@ -93,5 +104,3 @@ uv_stream_t* uv_tls_get_stream(uv_tls_t* tls);
 #endif
 
 #endif 
-
-

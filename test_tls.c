@@ -47,9 +47,6 @@ void on_read(uv_tls_t* clnt, int nread, uv_buf_t* dcrypted)
         if( nread == UV_EOF) {
             uv_tls_close(clnt, on_close);
         }
-        else {
-            fprintf( stderr, "on_read: %s\n", uv_strerror(nread));
-        }
         return;
     }
     uv_write_t *rq = (uv_write_t*)malloc(sizeof(*rq));
@@ -96,6 +93,7 @@ int main()
     if(uv_tls_init(loop, server) < 0) {
         free(server);
         server = 0;
+        fprintf( stderr, "TLS setup error\n");
         return  -1;
     }
 
