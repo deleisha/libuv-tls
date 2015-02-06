@@ -75,7 +75,10 @@ void on_connect(uv_stream_t *server, int status)
 
     //memory being freed at on_close
     uv_tls_t *sclient = (uv_tls_t*) malloc(sizeof(*sclient));
-    uv_tls_init(server->loop, sclient);
+    if( uv_tls_init(server->loop, sclient) < 0 ) {
+        //fprintf( stderr, "TLS setup error\n");
+        return;
+    }
 
     sclient->socket_->data = server_ssl;
     int r = uv_tls_accept(server_ssl, sclient);
@@ -119,7 +122,5 @@ int main()
     free (server);
     server = 0;
 
-    return EXIT_SUCCESS;
+    return 0;
 }
-
-

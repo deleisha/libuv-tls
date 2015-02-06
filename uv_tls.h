@@ -93,6 +93,15 @@ int uv_tls_close(uv_tls_t* session, ssl_close_cb close_cb);
 int uv_tls_shutdown(uv_tls_t* session);
 
 
+int uv_tls_connect(
+      uv_connect_t *req
+      ,uv_tls_t* hdl
+      ,const struct sockaddr* addr
+      ,uv_connect_cb cb);
+
+
+
+
 //Auxilary functions
 uv_stream_t* uv_tls_get_stream(uv_tls_t* tls);
 
