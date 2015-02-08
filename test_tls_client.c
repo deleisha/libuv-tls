@@ -39,21 +39,6 @@ void on_close(uv_tls_t* h)
 }
 
 
-//Callback for testing
-void on_read(uv_tls_t* clnt, int nread, uv_buf_t* dcrypted)
-{
-    if( nread <= 0 ) {
-        if( nread == UV_EOF) {
-            uv_tls_close(clnt, on_close);
-        }
-        return;
-    }
-
-    uv_write_t *rq = (uv_write_t*)malloc(sizeof(*rq));
-    assert(rq != 0);
-    uv_tls_write(rq, clnt, dcrypted, on_write);
-}
-
 void alloc_cb(uv_handle_t *handle, size_t size, uv_buf_t *buf)
 {
     buf->base = (char*)malloc(size);
@@ -73,9 +58,14 @@ void on_connect(uv_connect_t *req, int status)
     }
     fprintf( stderr, "TCP connection established\n");
 
+    uv_tls_t *clnt = req->handle->data;
     uv_write_t *rq = (uv_write_t*)malloc(sizeof(*rq));
+    uv_buf_t dcrypted;
+    dcrypted.base = "Hello SSL\n";
+    dcrypted.len = strlen(dcrypted.base);
+    fprintf( stderr, "Len = %d\n", dcrypted.len);
     assert(rq != 0);
-    //uv_tls_write(rq, clnt, dcrypted, on_write);
+    uv_tls_write(rq, clnt, &dcrypted, on_write);
 }
 
 

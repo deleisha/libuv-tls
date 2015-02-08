@@ -45,7 +45,7 @@ void on_read(uv_tls_t* clnt, int nread, uv_buf_t* dcrypted)
 {
     if( nread <= 0 ) {
         if( nread == UV_EOF) {
-            uv_tls_close(clnt, on_close);
+            //uv_tls_close(clnt, on_close);
         }
         return;
     }
@@ -80,7 +80,6 @@ void on_connect(uv_stream_t *server, int status)
         return;
     }
 
-    sclient->socket_->data = server_ssl;
     int r = uv_tls_accept(server_ssl, sclient);
     if(!r) {
         uv_tls_read(sclient, alloc_cb , on_read);

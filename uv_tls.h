@@ -50,7 +50,7 @@ enum uv_tls_state {
     ,STATE_CLOSING     = 0x4 // This means closed state also
 };
 
-//Minimal error handling
+//TODO: improve the error handling
 enum uv_tls_error {
     ERR_TLS_ERROR = -1 //use OpenSSL error handling technique for this
     ,ERR_TLS_OK
@@ -59,21 +59,23 @@ enum uv_tls_error {
 
 typedef struct uv_tls_s uv_tls_t;
 
-typedef void (*ssl_rd_cb)(uv_tls_t* h, int nrd, uv_buf_t* dcrypted);
-typedef void (*ssl_close_cb)(uv_tls_t* h);
+typedef void (*tls_rd_cb)(uv_tls_t* h, int nrd, uv_buf_t* dcrypted);
+typedef void (*tls_close_cb)(uv_tls_t* h);
+typedef void (*tls_connect_cb)(uv_tls_t* h, int status);
 
 //Most used members are put first
 struct uv_tls_s {
-    uv_tcp_t      *socket_; //handle that encapsulate the socket
-    BIO           *app_bio_; //This is our BIO, All IO should be through this
-    SSL           *ssl;
-    void          *data;   // Field for user data, the lib won't use this
-    int           op_state; // operational state
-    uv_tls_t      *peer; //reference to connected peer
-    ssl_rd_cb     rd_cb;
-    ssl_close_cb  close_cb;
-    SSL_CTX       *ctx;
-    BIO           *ssl_bio_; //the ssl BIO used only by openSSL
+    uv_tcp_t              *socket_; //handle that encapsulate the socket
+    BIO                   *app_bio_; //Our BIO, All IO should be through this
+    SSL                   *ssl;
+    void                  *data;   //User data, the lib won't use this
+    int                   op_state; // operational state
+    uv_tls_t              *peer; //reference to connected peer
+    tls_rd_cb             rd_cb;
+    tls_close_cb          close_cb;
+    tls_connect_cb        on_tls_connect;
+    SSL_CTX               *ctx;
+    BIO                   *ssl_bio_; //the ssl BIO used only by openSSL
 };
 
 
@@ -87,9 +89,9 @@ struct uv_tls_s {
 int uv_tls_init(uv_loop_t* loop, uv_tls_t* stream);
 int uv_tls_listen(uv_tls_t *server, const int bk, uv_connection_cb on_connect );
 int uv_tls_accept(uv_tls_t* server, uv_tls_t* client);
-int uv_tls_read(uv_tls_t* client, uv_alloc_cb alloc_cb , ssl_rd_cb on_read);
+int uv_tls_read(uv_tls_t* client, uv_alloc_cb alloc_cb , tls_rd_cb on_read);
 int uv_tls_write(uv_write_t* req, uv_tls_t *client, uv_buf_t* buf, uv_write_cb on_write);
-int uv_tls_close(uv_tls_t* session, ssl_close_cb close_cb);
+int uv_tls_close(uv_tls_t* session, tls_close_cb close_cb);
 int uv_tls_shutdown(uv_tls_t* session);
 
 
