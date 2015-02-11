@@ -61,7 +61,7 @@ typedef struct uv_tls_s uv_tls_t;
 
 typedef void (*tls_rd_cb)(uv_tls_t* h, int nrd, uv_buf_t* dcrypted);
 typedef void (*tls_close_cb)(uv_tls_t* h);
-typedef void (*tls_connect_cb)(uv_tls_t* h, int status);
+typedef void (*tls_connect_cb)(uv_connect_t* req, int status);
 
 //Most used members are put first
 struct uv_tls_s {
@@ -69,7 +69,7 @@ struct uv_tls_s {
     BIO                   *app_bio_; //Our BIO, All IO should be through this
     SSL                   *ssl;
     void                  *data;   //User data, the lib won't use this
-    int                   op_state; // operational state
+    int                   oprn_state; // operational state
     uv_tls_t              *peer; //reference to connected peer
     tls_rd_cb             rd_cb;
     tls_close_cb          close_cb;
