@@ -24,12 +24,34 @@
 
 #include "uv_tls.h"
 
+void alloc_cb(uv_handle_t *handle, size_t size, uv_buf_t *buf)
+{
+    buf->base = (char*)malloc(size);
+    memset(buf->base, 0, size);
+    buf->len = size;
+    assert(buf->base != NULL && "Memory allocation failed");
+}
+
+void echo_read(uv_tls_t *server, ssize_t nread, uv_buf_t buf) {
+    fprintf(stderr, "Entering %s\n", __FUNCTION__);
+
+    if (nread == -1) {
+        fprintf(stderr, "error echo_read");
+        return;
+    }
+     
+     fprintf(stderr, "%s\n", buf.base);
+}
+
 void on_write(uv_write_t *req, int status)
 {
-    if(!status && req) {
-        free(req);
-        req = 0;
+    if(!status ) {
+        return;
     }
+
+    uv_tls_read(req->handle->data, alloc_cb, echo_read);
+    free(req);
+    req = 0;
 }
 
 void on_close(uv_tls_t* h)
@@ -39,19 +61,12 @@ void on_close(uv_tls_t* h)
 }
 
 
-void alloc_cb(uv_handle_t *handle, size_t size, uv_buf_t *buf)
-{
-    buf->base = (char*)malloc(size);
-    memset(buf->base, 0, size);
-    buf->len = size;
-    assert(buf->base != NULL && "Memory allocation failed");
-}
-
 
 
 //TEST CODE for the lib
 void on_connect(uv_connect_t *req, int status)
 {
+    fprintf( stderr, "Entering tls_connect callback\n");
     if( status ) {
         fprintf( stderr, "TCP connection error\n");
         return;

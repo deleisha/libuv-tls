@@ -125,6 +125,7 @@ int uv_tls_init(uv_loop_t *loop, uv_tls_t *strm)
     strm->oprn_state = STATE_INIT;
     strm->rd_cb = NULL;
     strm->close_cb = NULL;
+    strm->write_cb = NULL;
     strm->peer = NULL;
 
     int rv = uv_tls_ctx_init(strm);
@@ -161,10 +162,17 @@ static void uv__tls_end(void)
 
 void uv__tls_write_cb(uv_write_t *req, int status)
 {
-    if(!status && req) {
-        free(req);
-        req = 0;
-    }
+//    fprintf( stderr, "Entering %s\n", __FUNCTION__);
+//    uv_stream_t* client = req->handle;
+//    uv_ssl_t *sessn = client->data->peer;
+//    if( 0 == status) { //success case
+//        sessn->write_cb(req, status);
+//    }
+//    else {
+//        encode_data(sessn, client, uv_buf_t *data2write)
+//    }
+    free(req);
+    req = 0;
 }
 
 
@@ -174,7 +182,6 @@ int uv__tls_read(uv_tls_t* tls, uv_stream_t* client, uv_buf_t* dcrypted, int sz)
     fprintf( stderr, "Entering %s\n", __FUNCTION__);
     assert(tls);
 
-    //check if handshake was complete
     if( !(tls->oprn_state & STATE_IO)) {
         uv__tls_handshake(tls, client);
     }
@@ -187,6 +194,7 @@ int uv__tls_read(uv_tls_t* tls, uv_stream_t* client, uv_buf_t* dcrypted, int sz)
     //clean the slate
     memset( dcrypted->base, 0, sz);
     int rv = SSL_read(tls->ssl, dcrypted->base, sz);
+
     uv__tls_err_hdlr(tls, client, rv);
 
     dcrypted->len = rv;
@@ -212,7 +220,6 @@ void on_tcp_read(uv_stream_t *client, ssize_t nread, const uv_buf_t *buf)
     free(buf->base);
 }
 
-
 void stay_uptodate(uv_tls_t *sserver, uv_stream_t* client, uv_alloc_cb uv__tls_alloc)
 {
     fprintf( stderr, "Entering %s\n", __FUNCTION__);
@@ -222,13 +229,10 @@ void stay_uptodate(uv_tls_t *sserver, uv_stream_t* client, uv_alloc_cb uv__tls_a
         if(uv__tls_alloc) {
             uv__tls_alloc((uv_handle_t*)client, pending, &mybuf);
         }
-
         int rv = BIO_read(sserver->app_bio_, mybuf.base, pending);
         assert( rv > 0 );
-
-        uv_write_t * req = (uv_write_t*)malloc(sizeof *req);
-        uv_write(req, (uv_stream_t*)client, &mybuf, 1, uv__tls_write_cb);
-        
+        uv_write_t *req = (uv_write_t*)malloc(sizeof *req);
+        uv_write(req, client, &mybuf, 1, uv__tls_write_cb);
         free(mybuf.base);
         mybuf.base = 0;
     }
@@ -323,12 +327,16 @@ int uv__tls_handshake(uv_tls_t* tls, uv_stream_t* client)
         tls->oprn_state = STATE_IO;
         //flush any pending data
         stay_uptodate(tls, client, uv__tls_alloc);
+        if(tls->on_tls_connect) {
+            assert(tls->con_req);
+            tls->on_tls_connect(tls->con_req, 0);
+        }
         return 1;
     }
     uv__tls_err_hdlr(tls, client, rv);
 
     //handshake take multiple trip, Check if it completed now
-    if(tls->oprn_state == STATE_HANDSHAKING) {
+    if(!(tls->oprn_state & STATE_IO)) {
         rv = SSL_do_handshake(tls->ssl);
         uv__tls_err_hdlr(tls, client, rv);
     }
@@ -355,54 +363,49 @@ int uv_tls_shutdown(uv_tls_t* session)
     return 0;
 }
 
-//write to ssl session
-int uv__tls_write(uv_tls_t* sessn, uv_stream_t* client, uv_buf_t *data2write)
+uv_buf_t encode_data(uv_tls_t* sessn, uv_stream_t* client, uv_buf_t *data2encode)
 {
-    fprintf( stderr, "Entering %s\n", __FUNCTION__);
     assert(sessn);
-
-    //check if handshake was complete
     if( !(sessn->oprn_state & STATE_IO )) {
         uv__tls_handshake(sessn, client);
     }
     //check if handshake was complete and return if not
     if( !(sessn->oprn_state & STATE_IO )) {
-        return  STATE_HANDSHAKING;
+        //return  STATE_HANDSHAKING;
     }
-
     //this should give me something to write to client
-    int rv = SSL_write(sessn->ssl, data2write->base, data2write->len);
+    int rv = SSL_write(sessn->ssl, data2encode->base, data2encode->len);
     uv__tls_err_hdlr(sessn, client, rv);
 
-    int pending = 0;
-    if( (pending = BIO_pending(sessn->app_bio_) ) > 0) {
-        rv = BIO_read(sessn->app_bio_, data2write->base, pending);
-        data2write->base[rv] = '\0';
-        data2write->len = rv;
-    }
+    size_t pending = 0;
+    uv_buf_t encoded_data;
+    if( (pending = BIO_ctrl_pending(sessn->app_bio_) ) > (size_t)0 ) {
+        encoded_data.base = (char*)malloc(pending);
+        encoded_data.len = pending;
 
-    return rv;
+        rv = BIO_read(sessn->app_bio_, encoded_data.base, pending);
+        data2encode->len = rv;
+    }
+    return encoded_data;
 }
 
 int uv_tls_write(uv_write_t* req,
        uv_tls_t *client,
        uv_buf_t *buf,
-       uv_write_cb uv_ssl_write_cb)
+       tls_write_cb uv_ssl_write_cb)
 {
     fprintf( stderr, "Entering %s\n", __FUNCTION__);
 
     uv_tls_t* self = (uv_tls_t*)client->peer;
     assert(self);
-    uv__tls_write(self, uv_tls_get_stream(client), buf);
+    self->write_cb = uv_ssl_write_cb;
 
-    //check  for negotiation completeness before sending data to wire
-    if( self->oprn_state & STATE_IO) {
-        return uv_write(req, uv_tls_get_stream(client), buf, 1, uv_ssl_write_cb);
-    }
+    const uv_buf_t data = encode_data(self, uv_tls_get_stream(client), buf);
+
+    return uv_write(req, uv_tls_get_stream(client), &data, 1, uv_ssl_write_cb);
 }
 
 
-//in case of server calling this, make sure peer is set with server tls handle
 int uv_tls_read(uv_tls_t* sclient, uv_alloc_cb uv__tls_alloc, tls_rd_cb on_read)
 {
     fprintf( stderr, "Entering %s\n", __FUNCTION__);
@@ -411,7 +414,6 @@ int uv_tls_read(uv_tls_t* sclient, uv_alloc_cb uv__tls_alloc, tls_rd_cb on_read)
     
     sclient->socket_->data = caller;
     caller->rd_cb = on_read;
-    //return uv_read_start(uv_tls_get_stream(sclient), uv__tls_alloc, on_tcp_read);
 }
 
 void on_tcp_conn(uv_connect_t* c, int status)
@@ -424,9 +426,6 @@ void on_tcp_conn(uv_connect_t* c, int status)
     }
     else { //tcp connection established
         uv__tls_handshake(sclnt, uv_tls_get_stream(sclnt));
-        if( sclnt->on_tls_connect) {
-            sclnt->on_tls_connect(c, status);
-        }
     }
 }
 
@@ -439,6 +438,7 @@ int uv_tls_connect(
     //set in client mode
     SSL_set_connect_state(hdl->ssl);
     hdl->on_tls_connect = cb;
+    hdl->con_req = req;
 
     hdl->peer = hdl;
     return uv_tcp_connect(req, hdl->socket_, addr, on_tcp_conn);
