@@ -65,12 +65,7 @@ static int uv_tls_ctx_init(uv_tls_t* tls)
     
     SSL_CTX_set_options(tls->ctx, SSL_OP_NO_SSLv2);
     SSL_CTX_set_options(tls->ctx, SSL_OP_NO_SSLv3);
-//    SSL_CTX_set_options(tls->ctx, SSL_OP_NO_TLSv1);
-//    SSL_CTX_set_options(tls->ctx, SSL_OP_NO_TLSv1_1);
 
-
-//    SSL_CTX_set_options(tls->ctx, SSL_OP_NO_TICKET)
-//    SSL_CTX_set_session_cache_mode(tls->ctx, SSL_SESS_CACHE_OFF);
     SSL_CTX_set_mode(tls->ctx, SSL_MODE_AUTO_RETRY |
          SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER     |
          SSL_MODE_ENABLE_PARTIAL_WRITE);
@@ -78,8 +73,8 @@ static int uv_tls_ctx_init(uv_tls_t* tls)
     SSL_CTX_set_mode(tls->ctx, SSL_MODE_RELEASE_BUFFERS);
 
     int r = 0;
-#define CIPHERS    "ALL:!EXPORT:!LOW"
     //TODO: Change this later, no hardcoding 
+#define CIPHERS    "ALL:!EXPORT:!LOW"
     r = SSL_CTX_set_cipher_list(tls->ctx, CIPHERS);
     if(r != 1) {
         return ERR_TLS_ERROR;
@@ -88,8 +83,6 @@ static int uv_tls_ctx_init(uv_tls_t* tls)
     SSL_CTX_set_verify(tls->ctx, SSL_VERIFY_NONE, uv__tls_verify_peer);
 
 
-    /* certificate file; contains also the public key
-     * */
     r = SSL_CTX_use_certificate_file(tls->ctx, CERTFILE, SSL_FILETYPE_PEM);
     if(r != 1) {
         return ERR_TLS_ERROR;
@@ -160,28 +153,11 @@ static void uv__tls_end(void)
     CRYPTO_cleanup_all_ex_data();
 }
 
-void uv__tls_write_cb(uv_write_t *req, int status)
-{
-//    fprintf( stderr, "Entering %s\n", __FUNCTION__);
-//    uv_stream_t* client = req->handle;
-//    uv_ssl_t *sessn = client->data->peer;
-//    if( 0 == status) { //success case
-//        sessn->write_cb(req, status);
-//    }
-//    else {
-//        encode_data(sessn, client, uv_buf_t *data2write)
-//    }
-    free(req);
-    req = 0;
-}
-
 
 int uv__tls_handshake(uv_tls_t* tls, uv_stream_t* client);
+int uv__tls_err_hdlr(uv_tls_t* k, uv_stream_t* client, const int err_code);
 int uv__tls_read(uv_tls_t* tls, uv_stream_t* client, uv_buf_t* dcrypted, int sz)
 {
-    fprintf( stderr, "Entering %s\n", __FUNCTION__);
-    assert(tls);
-
     if( !(tls->oprn_state & STATE_IO)) {
         uv__tls_handshake(tls, client);
     }
@@ -206,7 +182,6 @@ int uv__tls_read(uv_tls_t* tls, uv_stream_t* client, uv_buf_t* dcrypted, int sz)
 }
 void on_tcp_read(uv_stream_t *client, ssize_t nread, const uv_buf_t *buf)
 {
-    fprintf( stderr, "Entering %s\n", __FUNCTION__);
     uv_tls_t *self = (uv_tls_t*) client->data;
     assert(self != NULL);
 
@@ -222,19 +197,18 @@ void on_tcp_read(uv_stream_t *client, ssize_t nread, const uv_buf_t *buf)
 
 void stay_uptodate(uv_tls_t *sserver, uv_stream_t* client, uv_alloc_cb uv__tls_alloc)
 {
-    fprintf( stderr, "Entering %s\n", __FUNCTION__);
     int pending = BIO_pending(sserver->app_bio_);
     if( pending > 0) {
         uv_buf_t mybuf;
+
         if(uv__tls_alloc) {
             uv__tls_alloc((uv_handle_t*)client, pending, &mybuf);
         }
+
         int rv = BIO_read(sserver->app_bio_, mybuf.base, pending);
         assert( rv > 0 );
-        uv_write_t *req = (uv_write_t*)malloc(sizeof *req);
-        uv_write(req, client, &mybuf, 1, uv__tls_write_cb);
-        free(mybuf.base);
-        mybuf.base = 0;
+
+        uv_try_write(client, &mybuf, 1);
     }
     uv_read_start(client, uv__tls_alloc, on_tcp_read);
 }
@@ -248,10 +222,10 @@ static void uv__tls_alloc(uv_handle_t *handle, size_t size, uv_buf_t *buf)
 }
 
 
+
 //handle only non fatal error
 int uv__tls_err_hdlr(uv_tls_t* k, uv_stream_t* client, const int err_code)
 {
-    fprintf( stderr, "Entering %s\n", __FUNCTION__);
     if(err_code > 0) {
         return err_code;
     }
@@ -259,7 +233,6 @@ int uv__tls_err_hdlr(uv_tls_t* k, uv_stream_t* client, const int err_code)
     switch (SSL_get_error(k->ssl, err_code)) {
         case SSL_ERROR_NONE: //0
         case SSL_ERROR_SSL:  // 1
-            ERR_print_errors_fp(stderr);
             //don't break, flush data first
 
         case SSL_ERROR_WANT_READ: // 2
@@ -277,11 +250,12 @@ int uv__tls_err_hdlr(uv_tls_t* k, uv_stream_t* client, const int err_code)
     return err_code;
 }
 
+
 //Need to beef up once client is ready
 int uv__tls_close(uv_tls_t* session, uv_stream_t *clnt)
 {
+
     int rv = SSL_shutdown(session->ssl);
-    fprintf( stderr, "%s:%d SSL_shutdown = %d\n", __FUNCTION__, __LINE__, rv);
     uv__tls_err_hdlr(session, clnt, rv);
 
     if( rv == 0) {
@@ -293,7 +267,7 @@ int uv__tls_close(uv_tls_t* session, uv_stream_t *clnt)
         session->oprn_state = STATE_CLOSING;
     }
 
-    uv_close( (uv_handle_t*)uv_tls_get_stream(session->peer), NULL);
+    uv_close( (uv_handle_t*)clnt, NULL);
     if( session->close_cb) {
         session->close_cb(session);
     }
@@ -306,34 +280,30 @@ int uv_tls_close(uv_tls_t* session, tls_close_cb cb)
 {
     uv_tls_t* srvr = session->peer;
     assert(srvr != 0);
-    srvr->close_cb = cb;
-    return  uv__tls_close(srvr, uv_tls_get_stream(session));
+    session->close_cb = cb;
+    return  uv__tls_close(session, uv_tls_get_stream(session));
 }
 
 
 int uv__tls_handshake(uv_tls_t* tls, uv_stream_t* client)
 {
-    fprintf( stderr, "Entering %s\n", __FUNCTION__);
     assert(tls);
     if( tls->oprn_state & STATE_IO) {
         return 1;
     }
     
     int rv = SSL_do_handshake(tls->ssl);
+    uv__tls_err_hdlr(tls, client, rv);
     tls->oprn_state = STATE_HANDSHAKING;
 
     if(rv == 1) {
-        fprintf( stderr, "Handshaking done\n");
         tls->oprn_state = STATE_IO;
-        //flush any pending data
-        stay_uptodate(tls, client, uv__tls_alloc);
         if(tls->on_tls_connect) {
             assert(tls->con_req);
             tls->on_tls_connect(tls->con_req, 0);
         }
-        return 1;
+        return rv;
     }
-    uv__tls_err_hdlr(tls, client, rv);
 
     //handshake take multiple trip, Check if it completed now
     if(!(tls->oprn_state & STATE_IO)) {
@@ -342,7 +312,6 @@ int uv__tls_handshake(uv_tls_t* tls, uv_stream_t* client)
     }
     return rv;
 }
-
 
 int uv_tls_shutdown(uv_tls_t* session)
 {
@@ -369,17 +338,17 @@ uv_buf_t encode_data(uv_tls_t* sessn, uv_stream_t* client, uv_buf_t *data2encode
     if( !(sessn->oprn_state & STATE_IO )) {
         uv__tls_handshake(sessn, client);
     }
-    //check if handshake was complete and return if not
-    if( !(sessn->oprn_state & STATE_IO )) {
-        //return  STATE_HANDSHAKING;
-    }
+    //ensure if handshake was complete
+    assert(sessn->oprn_state & STATE_IO);
+
     //this should give me something to write to client
     int rv = SSL_write(sessn->ssl, data2encode->base, data2encode->len);
-    uv__tls_err_hdlr(sessn, client, rv);
+    //uv__tls_err_hdlr(sessn, client, rv);
 
     size_t pending = 0;
     uv_buf_t encoded_data;
     if( (pending = BIO_ctrl_pending(sessn->app_bio_) ) > (size_t)0 ) {
+
         encoded_data.base = (char*)malloc(pending);
         encoded_data.len = pending;
 
@@ -394,7 +363,6 @@ int uv_tls_write(uv_write_t* req,
        uv_buf_t *buf,
        tls_write_cb uv_ssl_write_cb)
 {
-    fprintf( stderr, "Entering %s\n", __FUNCTION__);
 
     uv_tls_t* self = (uv_tls_t*)client->peer;
     assert(self);
@@ -408,17 +376,16 @@ int uv_tls_write(uv_write_t* req,
 
 int uv_tls_read(uv_tls_t* sclient, uv_alloc_cb uv__tls_alloc, tls_rd_cb on_read)
 {
-    fprintf( stderr, "Entering %s\n", __FUNCTION__);
     uv_tls_t* caller = (uv_tls_t*)sclient->peer;
     assert(caller != NULL);
     
     sclient->socket_->data = caller;
     caller->rd_cb = on_read;
+    return 0;
 }
 
 void on_tcp_conn(uv_connect_t* c, int status)
 {
-    fprintf( stderr, "Entering %s\n", __FUNCTION__);
     uv_tls_t *sclnt = c->handle->data;
     assert( sclnt != 0);
     if(status < 0) {
@@ -434,7 +401,6 @@ int uv_tls_connect(
       uv_tls_t* hdl, const struct sockaddr* addr,
       uv_connect_cb cb)
 {
-    fprintf( stderr, "Entering %s\n", __FUNCTION__);
     //set in client mode
     SSL_set_connect_state(hdl->ssl);
     hdl->on_tls_connect = cb;
@@ -446,7 +412,6 @@ int uv_tls_connect(
 
 int uv_tls_accept(uv_tls_t* server, uv_tls_t* client)
 {
-    fprintf( stderr, "Entering %s\n", __FUNCTION__);
     assert( server != 0);
 
     uv_stream_t* stream = uv_tls_get_stream(client);
@@ -459,15 +424,15 @@ int uv_tls_accept(uv_tls_t* server, uv_tls_t* client)
 
     server->peer = client;
     client->peer = server;
-    client->socket_->data = client;
     uv__tls_handshake(server, uv_tls_get_stream(client));
+    //TODO: handle this
+    return 0;
 }
 
 int uv_tls_listen(uv_tls_t *server,
     const int backlog,
     uv_connection_cb on_connect )
 {
-    fprintf( stderr, "Entering %s\n", __FUNCTION__);
     //set the ssl for listening mode
     SSL_set_accept_state(server->ssl);
 

@@ -45,7 +45,7 @@ void on_read(uv_tls_t* clnt, int nread, uv_buf_t* dcrypted)
 {
     if( nread <= 0 ) {
         if( nread == UV_EOF) {
-            //uv_tls_close(clnt, on_close);
+            uv_tls_close(clnt, on_close);
         }
         return;
     }

@@ -32,7 +32,7 @@ void alloc_cb(uv_handle_t *handle, size_t size, uv_buf_t *buf)
     assert(buf->base != NULL && "Memory allocation failed");
 }
 
-void echo_read(uv_tls_t *server, ssize_t nread, uv_buf_t buf) {
+void echo_read(uv_tls_t *server, int nread, uv_buf_t *buf) {
     fprintf(stderr, "Entering %s\n", __FUNCTION__);
 
     if (nread == -1) {
@@ -40,12 +40,12 @@ void echo_read(uv_tls_t *server, ssize_t nread, uv_buf_t buf) {
         return;
     }
      
-     fprintf(stderr, "%s\n", buf.base);
+     fprintf(stderr, "%s\n", buf->base);
 }
 
 void on_write(uv_write_t *req, int status)
 {
-    if(!status ) {
+    if(status ) {
         return;
     }
 
@@ -78,7 +78,6 @@ void on_connect(uv_connect_t *req, int status)
     uv_buf_t dcrypted;
     dcrypted.base = "Hello SSL\n";
     dcrypted.len = strlen(dcrypted.base);
-    fprintf( stderr, "Len = %d\n", dcrypted.len);
     assert(rq != 0);
     uv_tls_write(rq, clnt, &dcrypted, on_write);
 }
