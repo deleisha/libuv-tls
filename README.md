@@ -20,7 +20,7 @@ To test the echo server, generate the test cert and key using
 
 Now the echo server is compiled and started and we can start sending some data using
 
-```openssl s_client -connect address:8000```
+```openssl s_client -connect address:8000 -nbio -state -msg -debug```
 
 
 where address is your ip address.
