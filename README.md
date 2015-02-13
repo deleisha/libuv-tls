@@ -1,4 +1,4 @@
-# libuv-ssl
+# libuv-tls
 Add SSL/TLS functionality on top of libuv
 
 This small library adds SSL/TLS functionality using BIO pair on libuv.
@@ -6,7 +6,7 @@ The TLS work is complete for server but TLS client interface and DTLS support ne
 
 ### TODO:
 - Add session resumption feature
-- Add code for uv_tls_connect based on uv_connect
+- Renegotiation not yet handle
 - Work on supporting DTLS support
 
 
