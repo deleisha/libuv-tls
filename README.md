@@ -6,8 +6,10 @@ The TLS work is complete for server but TLS client interface and DTLS support ne
 
 ### TODO:
 - Add session resumption feature
-- Renegotiation not yet handle
+- Renegotiation not yet handled
 - Work on supporting DTLS support
+- Remove state handling so as to enable multiple, simultaneous client handling
+- Fix memory leak in encode_data function
 
 
 
