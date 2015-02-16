@@ -287,7 +287,6 @@ int uv_tls_close(uv_tls_t* session, tls_close_cb cb)
 
 int uv__tls_handshake(uv_tls_t* tls, uv_stream_t* client)
 {
-    assert(tls);
     if( tls->oprn_state & STATE_IO) {
         return 1;
     }
@@ -334,7 +333,6 @@ int uv_tls_shutdown(uv_tls_t* session)
 
 uv_buf_t encode_data(uv_tls_t* sessn, uv_stream_t* client, uv_buf_t *data2encode)
 {
-    assert(sessn);
     if( !(sessn->oprn_state & STATE_IO )) {
         uv__tls_handshake(sessn, client);
     }
@@ -412,8 +410,6 @@ int uv_tls_connect(
 
 int uv_tls_accept(uv_tls_t* server, uv_tls_t* client)
 {
-    assert( server != 0);
-
     uv_stream_t* stream = uv_tls_get_stream(client);
     assert(stream != 0);
 
