@@ -1,14 +1,20 @@
 # libuv-tls
-Add SSL/TLS functionality on top of libuv
+Add SSL/TLS functionality on top of libuv using OpenSSL.
 
-This small library adds SSL/TLS functionality using BIO pair on libuv.
-DTLS support need to be worked on.
+This small library adds SSL/TLS functionality using BIO pair on libuv. It tries to provide
+API similar to libuv with bare minimum change. Also it tries to use facilities provided by
+OpenSSL. Currently it scratches BIO pair only as a result. This might go away as we learn
+more and more both on OpenSSL and libuv. Writing our own custom BIO will lend lot more
+flexibility. 
+
+We intend to provide the library as subpart of libuv, if we can finish soon.
 
 ### TODO:
-- Add session resumption feature
-- Renegotiation not yet handled
-- Work on supporting DTLS support
-- Handle multiple, simultaneous client connection
+- Add session resumption feature - may be later version
+- Renegotiation not yet handled - may be later version
+- Work on supporting DTLS support - later versions
+- Handle multiple, simultaneous client connection - must have for next release
+- Work on building and packaging
 
 
 
@@ -25,3 +31,6 @@ Now the echo server is compiled and started and we can start sending some data u
 
 
 where address is your ip address.
+
+### CONTRIBUTING
+Clone/fork the library and play around and provide feedback/patches or anything for improvement.
