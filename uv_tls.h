@@ -1,4 +1,3 @@
-
 /*//////////////////////////////////////////////////////////////////////////////
 
  * Copyright (c) 2015  deleisha and other libuv-tls contributors
@@ -37,28 +36,17 @@ extern "C" {
 #include <unistd.h>
 #include <assert.h>
  
-#include <openssl/err.h>
-#include <openssl/ssl.h>
-#include <openssl/conf.h>
-#include <openssl/engine.h>
+
+#include "tls_engine.h"
 
 
-enum uv_tls_state {
-    STATE_INIT         = 0x0
-    ,STATE_HANDSHAKING = 0x1
-    ,STATE_IO          = 0x2 //read or write mode
-    ,STATE_CLOSING     = 0x4 // This means closed state also
-};
-
-//TODO: improve the error handling
-enum uv_tls_error {
-    ERR_TLS_ERROR = -1 //use OpenSSL error handling technique for this
-    ,ERR_TLS_OK
-};
-
+//copied gladly from libuv
+#define CONTAINER_OF(ptr, type, member)                  \
+  ((type *) ((char *) (ptr) - offsetof(type, member)))
 
 typedef struct uv_tls_s uv_tls_t;
 
+typedef void (*tls_connection_cb)(uv_tls_t* server, int status);
 typedef void (*tls_rd_cb)(uv_tls_t* h, int nrd, uv_buf_t* dcrypted);
 typedef void (*tls_close_cb)(uv_tls_t* h);
 typedef void (*tls_connect_cb)(uv_connect_t* req, int status);
@@ -66,22 +54,18 @@ typedef void (*tls_write_cb)(uv_write_t* req, int status);
 
 //Most used members are put first
 struct uv_tls_s {
-    uv_tcp_t              *socket_; //handle that encapsulate the socket
-    BIO                   *app_bio_; //Our BIO, All IO should be through this
-    SSL                   *ssl;
-    void                  *data;   //User data, the lib won't use this
+    uv_tcp_t              socket_; //handle that encapsulate the socket
+    tls_engine            tls_eng;
+    void                  *data;
     int                   oprn_state; // operational state
     uv_tls_t              *peer; //reference to connected peer
     tls_rd_cb             rd_cb;
+    tls_connection_cb     on_tls_connection;
     tls_close_cb          close_cb;
     tls_connect_cb        on_tls_connect;
     uv_connect_t          *con_req;
     tls_write_cb          write_cb;
-    SSL_CTX               *ctx;
-    BIO                   *ssl_bio_; //the ssl BIO used only by openSSL
 };
-
-
 
 
 /*
@@ -95,6 +79,7 @@ int uv_tls_accept(uv_tls_t* server, uv_tls_t* client);
 int uv_tls_read(uv_tls_t* client, uv_alloc_cb alloc_cb , tls_rd_cb on_read);
 int uv_tls_write(uv_write_t* req, uv_tls_t *client, uv_buf_t* buf, tls_write_cb cb);
 int uv_tls_close(uv_tls_t* session, tls_close_cb close_cb);
+//shutdown should go away
 int uv_tls_shutdown(uv_tls_t* session);
 
 

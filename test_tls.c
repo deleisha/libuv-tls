@@ -25,6 +25,7 @@
 
 #include "uv_tls.h"
 
+#if 1
 void on_write(uv_write_t *req, int status)
 {
     if(!status && req) {
@@ -43,6 +44,7 @@ void on_close(uv_tls_t* h)
 //Callback for testing
 void on_read(uv_tls_t* clnt, int nread, uv_buf_t* dcrypted)
 {
+    uv_tls_t *k = clnt->data;
     if( nread <= 0 ) {
         if( nread == UV_EOF) {
             uv_tls_close(clnt, on_close);
@@ -52,6 +54,8 @@ void on_read(uv_tls_t* clnt, int nread, uv_buf_t* dcrypted)
     uv_write_t *rq = (uv_write_t*)malloc(sizeof(*rq));
     assert(rq != 0);
     uv_tls_write(rq, clnt, dcrypted, on_write);
+    free(dcrypted->base);
+    dcrypted->base = NULL;
 }
 
 void alloc_cb(uv_handle_t *handle, size_t size, uv_buf_t *buf)
@@ -65,25 +69,27 @@ void alloc_cb(uv_handle_t *handle, size_t size, uv_buf_t *buf)
 
 
 //TEST CODE for the lib
-void on_connect(uv_stream_t *server, int status)
+void on_connect_cb(uv_stream_t *server, int status)
 {
+    fprintf(stderr, "Entering %s\n", __FUNCTION__);
     if( status ) {
         return;
     }
-
-    uv_tls_t * server_ssl = (uv_tls_t*)server->data;
+    uv_tls_t *s_srvr = server->data;
 
     //memory being freed at on_close
     uv_tls_t *sclient = (uv_tls_t*) malloc(sizeof(*sclient));
     if( uv_tls_init(server->loop, sclient) < 0 ) {
-        //fprintf( stderr, "TLS setup error\n");
+        fprintf( stderr, "TLS setup error\n");
         return;
     }
 
-    int r = uv_tls_accept(server_ssl, sclient);
+    sclient->data = s_srvr;
+    int r = uv_tls_accept(s_srvr, sclient);
     if(!r) {
         uv_tls_read(sclient, alloc_cb , on_read);
     }
+    free(sclient);
 }
 
 
@@ -103,12 +109,12 @@ int main()
     struct sockaddr_in bind_addr;
     int r = uv_ip4_addr("0.0.0.0", port, &bind_addr);
     assert(!r);
-    r = uv_tcp_bind(server->socket_, (struct sockaddr*)&bind_addr, 0);
+    r = uv_tcp_bind(&(server->socket_), (struct sockaddr*)&bind_addr, 0);
     if( r ) {
         fprintf( stderr, "bind: %s\n", uv_strerror(r));
     }
 
-    int rv = uv_tls_listen(server, 128, on_connect);
+    int rv = uv_tls_listen(server, 128, on_connect_cb);
     if( rv ) {
         fprintf( stderr, "listen: %s\n", uv_strerror(rv));
     }
@@ -123,3 +129,101 @@ int main()
 
     return 0;
 }
+#else
+
+void on_write(uv_write_t *req, int status)
+{
+    if(!status && req) {
+        free(req);
+        req = 0;
+    }
+}
+
+void on_close(uv_handle_t* h)
+{
+    free(h);
+    h = 0;
+}
+
+
+//Callback for testing
+void on_read(uv_stream_t* clnt, int nread, uv_buf_t* dcrypted)
+{
+    if( nread <= 0 ) {
+        if( nread == UV_EOF) {
+            uv_close((uv_handle_t*)clnt, on_close);
+        }
+        return;
+    }
+    uv_write_t *rq = (uv_write_t*)malloc(sizeof(*rq));
+    assert(rq != 0);
+    uv_write(rq, (uv_stream_t*)clnt, dcrypted, 1, on_write);
+}
+
+void alloc_cb(uv_handle_t *handle, size_t size, uv_buf_t *buf)
+{
+    buf->base = (char*)malloc(size);
+    memset(buf->base, 0, size);
+    buf->len = size;
+    assert(buf->base != NULL && "Memory allocation failed");
+}
+
+
+
+//TEST CODE for the lib
+void on_connect(uv_stream_t *server, int status)
+{
+    if( status ) {
+        return;
+    }
+    
+    //memory being freed at on_close
+    uv_tcp_t *sclient = (uv_tcp_t*) malloc(sizeof(*sclient));
+    if( uv_tcp_init(server->loop, sclient) < 0 ) {
+        //fprintf( stderr, "TLS setup error\n");
+        return;
+    }
+
+    int r = uv_accept(server, (uv_stream_t*)sclient);
+    if(!r) {
+        uv_read_start((uv_stream_t*)sclient, alloc_cb , on_read);
+    }
+}
+
+
+int main()
+{
+    uv_loop_t *loop = uv_default_loop();
+
+    uv_tcp_t *server = (uv_tcp_t*)malloc(sizeof *server);
+    if(uv_tcp_init(loop, server) < 0) {
+        free(server);
+        server = 0;
+        fprintf( stderr, "TLS setup error\n");
+        return  -1;
+    }
+
+    const int port = 8000;
+    struct sockaddr_in bind_addr;
+    int r = uv_ip4_addr("0.0.0.0", port, &bind_addr);
+    assert(!r);
+    r = uv_tcp_bind(server, (struct sockaddr*)&bind_addr, 0);
+    if( r ) {
+        fprintf( stderr, "bind: %s\n", uv_strerror(r));
+    }
+
+    int rv = uv_listen((uv_stream_t*)server, 128, on_connect);
+    if( rv ) {
+        fprintf( stderr, "listen: %s\n", uv_strerror(rv));
+    }
+    printf("Listening on %d\n", port);
+
+    uv_run(loop, UV_RUN_DEFAULT);
+
+
+    free (server);
+    server = 0;
+
+    return 0;
+}
+#endif
