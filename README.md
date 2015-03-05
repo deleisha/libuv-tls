@@ -13,7 +13,6 @@ We intend to provide the library as subpart of libuv, if we can finish soon.
 - Add session resumption feature - may be later version
 - Renegotiation not yet handled - may be later version
 - Work on supporting DTLS support - later versions
-- Handle multiple, simultaneous client connection - must have for next release
 - Work on building and packaging
 
 
