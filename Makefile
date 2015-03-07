@@ -1,5 +1,4 @@
-all: echo 
-#tls_client
+all: echo tls_client
 echo: test_tls.c 
 	make -C ./libuv/out
 	#clang -fsanitize=address -g -Wall -o echo test_tls.c tls_engine.c uv_tls.c  libuv/out/Debug/libuv.a -lpthread -lssl -lcrypto
@@ -7,7 +6,7 @@ echo: test_tls.c
 
 tls_client: test_tls_client.c
 	make -C ./libuv/out
-	clang -g -Wall -o tls_client test_tls_client.c uv_tls.c libuv/out/Debug/libuv.a -lpthread -lssl -lcrypto
+	clang -g -Wall -o tls_client test_tls_client.c tls_engine.c uv_tls.c libuv/out/Debug/libuv.a -lpthread -lssl -lcrypto
 
 clean:
 	-rm echo

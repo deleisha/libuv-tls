@@ -61,6 +61,7 @@ struct tls_engine_s {
     SSL     *ssl;
     SSL_CTX *ctx;
     BIO     *ssl_bio_; //the ssl BIO used only by openSSL
+    //QUEUE conn_q;
 };
 
 static tls_engine the_engine;

@@ -84,7 +84,8 @@ void on_tcp_read(uv_stream_t *client, ssize_t nread, const uv_buf_t *buf)
     assert( parent != NULL);
 
     if( nread <= 0 ) {
-        caller->rd_cb(caller->peer, nread, (uv_buf_t*)buf);
+        //caller->rd_cb(caller->peer, nread, (uv_buf_t*)buf);
+        caller->rd_cb(parent, nread, (uv_buf_t*)buf);
     }
     else {
         BIO_write( caller->tls_eng.app_bio_, buf->base, nread);
@@ -193,8 +194,6 @@ int uv__tls_close(uv_tls_t* session, uv_stream_t *clnt)
 int uv_tls_close(uv_tls_t* session, tls_close_cb cb)
 {
     fprintf(stderr, "Entering %s\n", __FUNCTION__);
-    //uv_tls_t* sclnt = session->peer;
-    //assert(sclnt != 0);
     session->close_cb = cb;
     return  uv__tls_close(session->peer, uv_tls_get_stream(session));
 }
@@ -312,8 +311,22 @@ int uv_tls_connect(
       uv_connect_cb cb)
 {
     fprintf(stderr, "Entering %s\n", __FUNCTION__);
+
+    tls_engine *tls_ngin = &(hdl->tls_eng);
+
+    tls_ngin->ssl = SSL_new(tls_ngin->ctx);
+    if(!tls_ngin->ssl) {
+        return ERR_TLS_ERROR;
+    }
+
     //set in client mode
     SSL_set_connect_state(hdl->tls_eng.ssl);
+    //use default buf size for now.
+    if( !BIO_new_bio_pair(&(tls_ngin->ssl_bio_), 0, &(tls_ngin->app_bio_), 0)) {
+        return ERR_TLS_ERROR;
+    }
+    SSL_set_bio(tls_ngin->ssl, tls_ngin->ssl_bio_, tls_ngin->ssl_bio_);
+
     hdl->on_tls_connect = cb;
     hdl->con_req = req;
 
@@ -324,10 +337,10 @@ int uv_tls_connect(
 int uv_tls_accept(uv_tls_t* server, uv_tls_t* client)
 {
     fprintf(stderr, "Entering %s\n", __FUNCTION__);
-    uv_stream_t* stream = uv_tls_get_stream(client);
-    assert(stream != 0);
+    uv_stream_t* clnt = uv_tls_get_stream(client);
+    assert(clnt != 0);
 
-    int rv = uv_accept( uv_tls_get_stream(server), stream);
+    int rv = uv_accept( uv_tls_get_stream(server), clnt);
     if (rv < 0) {
         return rv;
     }

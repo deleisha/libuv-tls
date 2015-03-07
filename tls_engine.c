@@ -125,7 +125,7 @@ void tls_engine_stop(void)
 }
 
 
-SSL_CTX* get_tls_ctx(void )
+inline SSL_CTX* get_tls_ctx(void )
 {
     return get_tls_engine()->ctx;
 }
