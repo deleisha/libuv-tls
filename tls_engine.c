@@ -130,7 +130,8 @@ inline SSL_CTX* get_tls_ctx(void )
     return get_tls_engine()->ctx;
 }
 
-
+/*
+Commented out till the tls_eng state machine is completely ready
 int feed_engine(tls_engine *eng, void *data, int sz )
 {
     return BIO_write(eng->app_bio_, data, sz);
@@ -166,4 +167,4 @@ void drive_engine(tls_engine *eng)
     return;
 
 }
-
+*/
