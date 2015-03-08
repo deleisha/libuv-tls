@@ -76,7 +76,7 @@ void on_connect(uv_connect_t *req, int status)
     uv_tls_t *clnt = req->handle->data;
     uv_write_t *rq = (uv_write_t*)malloc(sizeof(*rq));
     uv_buf_t dcrypted;
-    dcrypted.base = "Hello SSL\n";
+    dcrypted.base = "Hello from lib-tls";
     dcrypted.len = strlen(dcrypted.base);
     assert(rq != 0);
     uv_tls_write(rq, clnt, &dcrypted, on_write);

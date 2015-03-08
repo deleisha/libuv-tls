@@ -44,7 +44,6 @@ void on_close(uv_tls_t* h)
 //Callback for testing
 void on_read(uv_tls_t* clnt, int nread, uv_buf_t* dcrypted)
 {
-    uv_tls_t *k = clnt->data;
     if( nread <= 0 ) {
         if( nread == UV_EOF) {
             uv_tls_close(clnt, on_close);
@@ -75,7 +74,7 @@ void on_connect_cb(uv_stream_t *server, int status)
     if( status ) {
         return;
     }
-    uv_tls_t *s_srvr = server->data;
+    uv_tls_t *s_srvr = CONTAINER_OF(server, uv_tls_t, socket_);
 
     //memory being freed at on_close
     uv_tls_t *sclient = (uv_tls_t*) malloc(sizeof(*sclient));
@@ -84,12 +83,10 @@ void on_connect_cb(uv_stream_t *server, int status)
         return;
     }
 
-    sclient->data = s_srvr;
     int r = uv_tls_accept(s_srvr, sclient);
     if(!r) {
         uv_tls_read(sclient, alloc_cb , on_read);
     }
-    free(sclient);
 }
 
 

@@ -58,7 +58,6 @@ struct uv_tls_s {
     tls_engine            tls_eng;
     void                  *data;
     int                   oprn_state; // operational state
-    uv_tls_t              *peer; //reference to connected peer
     tls_rd_cb             rd_cb;
     tls_connection_cb     on_tls_connection;
     tls_close_cb          close_cb;
