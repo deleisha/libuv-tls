@@ -1,6 +1,7 @@
+
 /*//////////////////////////////////////////////////////////////////////////////
 
- * Copyright (c) 2015  deleisha and other libuv-tls contributors
+ * Copyright (c) 2015 libuv-tls contributors
 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -106,7 +107,7 @@ int main()
     uv_run(loop, UV_RUN_DEFAULT);
 
 
-    uv_tls_shutdown(client);
+    tls_engine_stop();
     free (client);
     client = 0;
 

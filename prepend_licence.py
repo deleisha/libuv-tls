@@ -5,7 +5,7 @@ import sys
 LICENSE = '''
 /*//////////////////////////////////////////////////////////////////////////////
 
- * Copyright (c) 2015  deleisha and other libuv-tls contributors
+ * Copyright (c) 2015 libuv-tls contributors
 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,8 +28,9 @@ LICENSE = '''
 '''
 
 if len(sys.argv) < 2:
-    sys.stderr.write('usage: ' + sys.argv[0] + ' file.c\n' )
+    sys.stderr.write('usage: ' + sys.argv[0] + ' file\n' )
     sys.exit(1)
+#if len
 
 with file(sys.argv[1], 'r') as original: data = original.read()
 with file(sys.argv[1], 'w') as modified: modified.write(LICENSE + '\n\n' + data)

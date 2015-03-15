@@ -1,6 +1,7 @@
+
 /*//////////////////////////////////////////////////////////////////////////////
 
- * Copyright (c) 2015  deleisha and other libuv-tls contributors
+ * Copyright (c) 2015 libuv-tls contributors
 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,7 +33,6 @@ uv_stream_t* uv_tls_get_stream(uv_tls_t* tls)
 
 int uv_tls_init(uv_loop_t *loop, uv_tls_t *strm)
 {
-    fprintf(stderr, "Entering %s\n", __FUNCTION__);
 
     uv_tcp_init(loop, &strm->socket_);
     strm->socket_.data = strm;
@@ -45,21 +45,18 @@ int uv_tls_init(uv_loop_t *loop, uv_tls_t *strm)
     ng->app_bio_ = 0;
     strm->oprn_state = STATE_INIT;
     strm->rd_cb = NULL;
-    strm->on_tls_connection = NULL;
     strm->close_cb = NULL;
     strm->on_tls_connect = NULL;
-    strm->write_cb = NULL;
     return 0;
 }
 
 void stay_uptodate(uv_tls_t *sec_strm, uv_alloc_cb uv__tls_alloc)
 {
-
-    fprintf(stderr, "Entering %s\n", __FUNCTION__);
     uv_stream_t * client = uv_tls_get_stream(sec_strm);
 
     int pending = BIO_pending(sec_strm->tls_eng.app_bio_);
     if( pending > 0) {
+
         //Need to free the memory
         uv_buf_t mybuf;
 
@@ -70,7 +67,9 @@ void stay_uptodate(uv_tls_t *sec_strm, uv_alloc_cb uv__tls_alloc)
         int rv = BIO_read(sec_strm->tls_eng.app_bio_, mybuf.base, pending);
         assert( rv == pending );
 
-        uv_try_write(uv_tls_get_stream(sec_strm), &mybuf, 1);
+        rv = uv_try_write(client, &mybuf, 1);
+        assert(rv == pending);
+
         free(mybuf.base);
         mybuf.base = 0;
     }
@@ -78,7 +77,6 @@ void stay_uptodate(uv_tls_t *sec_strm, uv_alloc_cb uv__tls_alloc)
 
 static void uv__tls_alloc(uv_handle_t *handle, size_t size, uv_buf_t *buf)
 {
-    fprintf(stderr, "Entering %s\n", __FUNCTION__);
     buf->base = (char*)malloc(size);
     assert(buf->base != NULL && "Memory allocation failed");
     buf->len = size;
@@ -87,7 +85,6 @@ static void uv__tls_alloc(uv_handle_t *handle, size_t size, uv_buf_t *buf)
 //handle only non fatal error currently
 int uv__tls_err_hdlr(uv_tls_t* k, const int err_code)
 {
-    fprintf(stderr, "Entering %s\n", __FUNCTION__);
     if(err_code > 0) {
         return err_code;
     }
@@ -104,24 +101,27 @@ int uv__tls_err_hdlr(uv_tls_t* k, const int err_code)
             stay_uptodate(k, uv__tls_alloc);
             break;
         case SSL_ERROR_ZERO_RETURN: // 5
-            ERR_print_errors_fp(stderr);
         case SSL_ERROR_SYSCALL: //6
-            ERR_print_errors_fp(stderr);
         case SSL_ERROR_WANT_CONNECT: //7
-            ERR_print_errors_fp(stderr);
         case SSL_ERROR_WANT_ACCEPT: //8
-            ERR_print_errors_fp(stderr);
+            //ERR_print_errors_fp(stderr);
         default:
             return err_code;
     }
     return err_code;
 }
 
+void after_close(uv_handle_t * hdl)
+{
+    uv_tls_t *s = CONTAINER_OF((uv_tcp_t*)hdl, uv_tls_t, socket_);
+    if( s->close_cb) {
+        s->close_cb(s);
+        s = 0;
+    }
+}
 
-//Need to beef up once client is ready
 int uv__tls_close(uv_tls_t* session)
 {
-    fprintf(stderr, "Entering %s\n", __FUNCTION__);
 
     tls_engine *ng = &(session->tls_eng);
     int rv = SSL_shutdown(ng->ssl);
@@ -137,14 +137,13 @@ int uv__tls_close(uv_tls_t* session)
         session->oprn_state = STATE_CLOSING;
     }
 
+    BIO_free(ng->app_bio_);
+    ng->app_bio_ = NULL;
     SSL_free(ng->ssl);
     ng->ssl = NULL;
-    BIO_free(ng->app_bio_);
 
-    uv_close( (uv_handle_t*)uv_tls_get_stream(session), NULL);
-    if( session->close_cb) {
-        session->close_cb(session);
-    }
+    //uv_close( (uv_handle_t*)uv_tls_get_stream(session), session->close_cb);
+    uv_close( (uv_handle_t*)uv_tls_get_stream(session), after_close);
 
     return rv;
 }
@@ -152,15 +151,12 @@ int uv__tls_close(uv_tls_t* session)
 //shutdown the ssl session then stream
 int uv_tls_close(uv_tls_t* session, tls_close_cb cb)
 {
-    fprintf(stderr, "Entering %s\n", __FUNCTION__);
     session->close_cb = cb;
     return  uv__tls_close(session);
 }
 
-
 int uv__tls_handshake(uv_tls_t* tls)
 {
-    fprintf(stderr, "Entering %s\n", __FUNCTION__);
     if( tls->oprn_state & STATE_IO) {
         return 1;
     }
@@ -170,7 +166,6 @@ int uv__tls_handshake(uv_tls_t* tls)
     tls->oprn_state = STATE_HANDSHAKING;
 
     if(rv == 1) {
-        fprintf(stderr, "Handshaking done\n");
         tls->oprn_state = STATE_IO;
         if(tls->on_tls_connect) {
             assert(tls->con_req);
@@ -182,7 +177,6 @@ int uv__tls_handshake(uv_tls_t* tls)
 
 int uv_tls_shutdown(uv_tls_t* session)
 {
-    fprintf(stderr, "Entering %s\n", __FUNCTION__);
     assert( session != NULL && "Invalid session");
 
     SSL_CTX_free(session->tls_eng.ctx);
@@ -193,13 +187,12 @@ int uv_tls_shutdown(uv_tls_t* session)
 
 uv_buf_t encode_data(uv_tls_t* sessn, uv_buf_t *data2encode)
 {
-    fprintf(stderr, "Entering %s\n", __FUNCTION__);
     //this should give me something to write to client
     int rv = SSL_write(sessn->tls_eng.ssl, data2encode->base, data2encode->len);
 
-    size_t pending = 0;
+    int pending = 0;
     uv_buf_t encoded_data;
-    if( (pending = BIO_ctrl_pending(sessn->tls_eng.app_bio_) ) > (size_t)0 ) {
+    if( (pending = BIO_pending(sessn->tls_eng.app_bio_) ) > 0 ) {
 
         encoded_data.base = (char*)malloc(pending);
         encoded_data.len = pending;
@@ -213,11 +206,8 @@ uv_buf_t encode_data(uv_tls_t* sessn, uv_buf_t *data2encode)
 int uv_tls_write(uv_write_t* req,
        uv_tls_t *client,
        uv_buf_t *buf,
-       tls_write_cb on_tls_write)
+       uv_write_cb on_tls_write)
 {
-    fprintf(stderr, "Entering %s\n", __FUNCTION__);
-
-    client->write_cb = on_tls_write;
 
     const uv_buf_t data = encode_data(client, buf);
 
@@ -228,7 +218,6 @@ int uv_tls_write(uv_write_t* req,
 
 int uv__tls_read(uv_tls_t* tls, uv_buf_t* dcrypted, int sz)
 {
-    fprintf(stderr, "Entering %s\n", __FUNCTION__);
 
     if( !SSL_is_init_finished(tls->tls_eng.ssl)) {
         uv__tls_handshake(tls);
@@ -249,7 +238,6 @@ int uv__tls_read(uv_tls_t* tls, uv_buf_t* dcrypted, int sz)
 
 void on_tcp_read(uv_stream_t *client, ssize_t nread, const uv_buf_t *buf)
 {
-    fprintf(stderr, "Entering %s\n", __FUNCTION__);
 
     uv_tls_t *parent = CONTAINER_OF(client, uv_tls_t, socket_);
     assert( parent != NULL);
@@ -264,9 +252,10 @@ void on_tcp_read(uv_stream_t *client, ssize_t nread, const uv_buf_t *buf)
     free(buf->base);
 }
 
+//uv_alloc_cb is unused, but here for cosmetic reasons
+//Need improvement
 int uv_tls_read(uv_tls_t* sclient, uv_alloc_cb uv__tls_alloc, tls_rd_cb on_read)
 {
-    fprintf(stderr, "Entering %s\n", __FUNCTION__);
 
     sclient->rd_cb = on_read;
     return 0;
@@ -276,7 +265,6 @@ int uv_tls_read(uv_tls_t* sclient, uv_alloc_cb uv__tls_alloc, tls_rd_cb on_read)
 
 void on_tcp_conn(uv_connect_t* c, int status)
 {
-    fprintf(stderr, "Entering %s\n", __FUNCTION__);
 
     uv_tls_t *sclnt = c->handle->data;
     assert( sclnt != 0);
@@ -290,27 +278,42 @@ void on_tcp_conn(uv_connect_t* c, int status)
     }
 }
 
-int uv_tls_connect(
-      uv_connect_t *req,
-      uv_tls_t* hdl, const struct sockaddr* addr,
-      uv_connect_cb cb)
+static int assume_role(tls_engine *tls_ngin, int endpt_role)
 {
-    fprintf(stderr, "Entering %s\n", __FUNCTION__);
-
-    tls_engine *tls_ngin = &(hdl->tls_eng);
-
     tls_ngin->ssl = SSL_new(tls_ngin->ctx);
     if(!tls_ngin->ssl) {
         return ERR_TLS_ERROR;
     }
+    
+    if( endpt_role == 1) {
+        SSL_set_accept_state(tls_ngin->ssl);
+    }
+    else {
+        //set in client mode
+        SSL_set_connect_state(tls_ngin->ssl);
+    }
 
-    //set in client mode
-    SSL_set_connect_state(hdl->tls_eng.ssl);
     //use default buf size for now.
     if( !BIO_new_bio_pair(&(tls_ngin->ssl_bio_), 0, &(tls_ngin->app_bio_), 0)) {
         return ERR_TLS_ERROR;
     }
     SSL_set_bio(tls_ngin->ssl, tls_ngin->ssl_bio_, tls_ngin->ssl_bio_);
+    return  ERR_TLS_OK;
+}
+
+
+
+int uv_tls_connect(
+      uv_connect_t *req,
+      uv_tls_t* hdl, const struct sockaddr* addr,
+      uv_connect_cb cb)
+{
+
+    tls_engine *tls_ngin = &(hdl->tls_eng);
+    int rv = assume_role(tls_ngin, 0);
+    if(rv != ERR_TLS_OK) {
+        return  rv;
+    }
 
     hdl->on_tls_connect = cb;
     hdl->con_req = req;
@@ -320,10 +323,10 @@ int uv_tls_connect(
 
 int uv_tls_accept(uv_tls_t* server, uv_tls_t* client)
 {
-    fprintf(stderr, "Entering %s\n", __FUNCTION__);
     uv_stream_t* clnt = uv_tls_get_stream(client);
-    uv_stream_t* srvr = uv_tls_get_stream(server);
     assert(clnt != 0);
+    
+    uv_stream_t* srvr = uv_tls_get_stream(server);
     assert(srvr != 0);
 
     int rv = uv_accept( srvr, clnt);
@@ -335,21 +338,13 @@ int uv_tls_accept(uv_tls_t* server, uv_tls_t* client)
     clnt->data = server;
 
     tls_engine *tls_ngin = &(client->tls_eng);
-
-    tls_ngin->ssl = SSL_new(tls_ngin->ctx);
-    if(!tls_ngin->ssl) {
-        return ERR_TLS_ERROR;
+    //server role
+    rv = assume_role( tls_ngin, 1);
+    if(rv != ERR_TLS_OK) {
+        return  rv;
     }
-    SSL_set_accept_state(tls_ngin->ssl);
-    //use default buf size for now.
-    if( !BIO_new_bio_pair(&(tls_ngin->ssl_bio_), 0, &(tls_ngin->app_bio_), 0)) {
-        return ERR_TLS_ERROR;
-    }
-    SSL_set_bio(tls_ngin->ssl, tls_ngin->ssl_bio_, tls_ngin->ssl_bio_);
 
-    uv_read_start((uv_stream_t*)&client->socket_, uv__tls_alloc, on_tcp_read);
-    //TODO: handle this
-    return 0;
+    return uv_read_start(clnt, uv__tls_alloc, on_tcp_read);
 }
 
 
@@ -357,8 +352,6 @@ int uv_tls_listen(uv_tls_t *server,
     const int backlog,
     uv_connection_cb on_new_connect )
 {
-    fprintf(stderr, "Entering %s\n", __FUNCTION__);
-
     uv_stream_t *strm = uv_tls_get_stream(server);
     assert(strm != NULL);
     return uv_listen( strm, backlog, on_new_connect);

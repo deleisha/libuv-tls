@@ -1,7 +1,7 @@
 
 /*//////////////////////////////////////////////////////////////////////////////
 
- * Copyright (c) 2015  deleisha and other libuv-tls contributors
+ * Copyright (c) 2015 libuv-tls contributors
 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -67,8 +67,7 @@ static tls_engine the_engine;
 static tls_engine *ptr_engine;
 
 
-
-SSL_CTX* get_tls_ctx(void );
+int tls_engine_inhale(char *, char*, int);
 
 
 #ifdef __cplusplus

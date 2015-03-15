@@ -1,6 +1,7 @@
+
 /*//////////////////////////////////////////////////////////////////////////////
 
- * Copyright (c) 2015  deleisha and other libuv-tls contributors
+ * Copyright (c) 2015 libuv-tls contributors
 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -46,24 +47,20 @@ extern "C" {
 
 typedef struct uv_tls_s uv_tls_t;
 
-typedef void (*tls_connection_cb)(uv_tls_t* server, int status);
 typedef void (*tls_rd_cb)(uv_tls_t* h, int nrd, uv_buf_t* dcrypted);
 typedef void (*tls_close_cb)(uv_tls_t* h);
 typedef void (*tls_connect_cb)(uv_connect_t* req, int status);
-typedef void (*tls_write_cb)(uv_write_t* req, int status);
 
 //Most used members are put first
 struct uv_tls_s {
     uv_tcp_t              socket_; //handle that encapsulate the socket
-    tls_engine            tls_eng;
+    tls_engine            tls_eng;  //the tls engine representation
     void                  *data;
     int                   oprn_state; // operational state
     tls_rd_cb             rd_cb;
-    tls_connection_cb     on_tls_connection;
     tls_close_cb          close_cb;
     tls_connect_cb        on_tls_connect;
     uv_connect_t          *con_req;
-    tls_write_cb          write_cb;
 };
 
 
@@ -76,18 +73,28 @@ int uv_tls_init(uv_loop_t* loop, uv_tls_t* stream);
 int uv_tls_listen(uv_tls_t *server, const int bk, uv_connection_cb on_connect );
 int uv_tls_accept(uv_tls_t* server, uv_tls_t* client);
 int uv_tls_read(uv_tls_t* client, uv_alloc_cb alloc_cb , tls_rd_cb on_read);
-int uv_tls_write(uv_write_t* req, uv_tls_t *client, uv_buf_t* buf, tls_write_cb cb);
+int uv_tls_write(uv_write_t* req, uv_tls_t *client, uv_buf_t* buf, uv_write_cb cb);
 int uv_tls_close(uv_tls_t* session, tls_close_cb close_cb);
 //shutdown should go away
 int uv_tls_shutdown(uv_tls_t* session);
+
+
 
 
 int uv_tls_connect(
       uv_connect_t *req
       ,uv_tls_t* hdl
       ,const struct sockaddr* addr
-      ,uv_connect_cb cb);
+      ,uv_connect_cb cb
+);
 
+
+
+//verification mode unused currently, SSL_VERIFY_NONE set
+int tls_enginge_inhale(char *cert, char *key, int verify_mode);
+void tls_engine_stop(void);
+
+SSL_CTX *get_tls_ctx(void);
 
 
 
