@@ -15,6 +15,16 @@ We intend to provide the library as subpart of libuv, if we can finish soon.
 - Work on supporting DTLS support - later versions
 - Work on building and packaging
 
+### Usage and API
+libuv-tls have similar looking API as that of libuv. Any libuv users can easily used the API 
+looking at the uv_tls.h
+
+uv_tls.h have all the APIs and users including this header will still have access to all APIs
+being exported by uv.h
+
+As of that, libuv-tls does not hide any symbols.
+
+Sample usage can be seen at ```test_tls.c``` and ```test_tls_client.c```
 
 
 ### TEST:
