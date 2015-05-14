@@ -77,7 +77,7 @@ void stay_uptodate(uv_tls_t *sec_strm, uv_alloc_cb uv__tls_alloc)
 
 static void uv__tls_alloc(uv_handle_t *handle, size_t size, uv_buf_t *buf)
 {
-    buf->base = (char*)malloc(size);
+    buf->base = malloc(size);
     assert(buf->base != NULL && "Memory allocation failed");
     buf->len = size;
 }
@@ -142,7 +142,6 @@ int uv__tls_close(uv_tls_t* session)
     SSL_free(ng->ssl);
     ng->ssl = NULL;
 
-    //uv_close( (uv_handle_t*)uv_tls_get_stream(session), session->close_cb);
     uv_close( (uv_handle_t*)uv_tls_get_stream(session), after_close);
 
     return rv;
@@ -167,6 +166,7 @@ int uv__tls_handshake(uv_tls_t* tls)
 
     if(rv == 1) {
         tls->oprn_state = STATE_IO;
+
         if(tls->on_tls_connect) {
             assert(tls->con_req);
             tls->on_tls_connect(tls->con_req, 0);
@@ -220,7 +220,10 @@ int uv__tls_read(uv_tls_t* tls, uv_buf_t* dcrypted, int sz)
 {
 
     if( !SSL_is_init_finished(tls->tls_eng.ssl)) {
-        uv__tls_handshake(tls);
+        if( 1 != uv__tls_handshake(tls)) {
+            //recheck if handshake is complete now
+            return STATE_HANDSHAKING;
+        }
     }
 
     //clean the slate
@@ -242,7 +245,7 @@ void on_tcp_read(uv_stream_t *client, ssize_t nread, const uv_buf_t *buf)
     uv_tls_t *parent = CONTAINER_OF(client, uv_tls_t, socket_);
     assert( parent != NULL);
 
-    if( nread <= 0 ) {
+    if( nread <= 0 && ( parent->oprn_state & STATE_IO)) {
         parent->rd_cb(parent, nread, (uv_buf_t*)buf);
     }
     else {
@@ -338,6 +341,7 @@ int uv_tls_accept(uv_tls_t* server, uv_tls_t* client)
     clnt->data = server;
 
     tls_engine *tls_ngin = &(client->tls_eng);
+
     //server role
     rv = assume_role( tls_ngin, 1);
     if(rv != ERR_TLS_OK) {
