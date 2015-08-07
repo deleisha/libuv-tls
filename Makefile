@@ -1,11 +1,13 @@
 all: echo tls_client
 echo: test_tls.c 
+	cd libuv && python gyp_uv.py
 	make -C ./libuv/out
 	#clang -fsanitize=address -g -Wall -o echo test_tls.c tls_engine.c uv_tls.c  libuv/out/Debug/libuv.a -lpthread -lssl -lcrypto
 	clang -g -Wall -Wunused -o echo tls_engine.c uv_tls.c  test_tls.c \
             libuv/out/Debug/libuv.a -lpthread -lssl -lcrypto
 
 tls_client: test_tls_client.c
+	cd libuv && python gyp_uv.py
 	make -C ./libuv/out
 	clang -g -Wall -o tls_client tls_engine.c uv_tls.c test_tls_client.c \
             libuv/out/Debug/libuv.a -lpthread -lssl -lcrypto
