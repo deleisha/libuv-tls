@@ -30,8 +30,6 @@ Sample usage can be seen at ```test_tls.c``` and ```test_tls_client.c```
 ### TEST:
 To test the echo server, generate the test cert and key using
 
-```openssl req -x509 -newkey rsa:2048 -nodes -keyout server-key.pem -out server-cert.pem```
-
 ```make && ./echo```
 
 Now the echo server is compiled and started and we can start sending some data using
