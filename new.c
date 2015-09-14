@@ -125,11 +125,6 @@ int is_key_set(evt_tls_t *t)
 int evt_tls_feed_data(evt_tls_conn_t *c, void *data, int sz)
 {
     int rv =  BIO_write(c->app_bio_, data, sz);
-
-    if ( rv != sz) {
-	//BIO_read
-    }
-
     assert( rv == sz);
 
     //if handshake is not complete
@@ -141,7 +136,6 @@ int evt_tls_feed_data(evt_tls_conn_t *c, void *data, int sz)
 	int r = SSL_read(c->ssl, txt, sizeof(txt));
 	printf("%s", txt);
     }
-
 }
 
 int simulate_nio(evt_tls_conn_t *src, evt_tls_conn_t *dest)
@@ -152,6 +146,40 @@ int simulate_nio(evt_tls_conn_t *src, evt_tls_conn_t *dest)
     assert( p == pending);
 
     evt_tls_feed_data(dest, buf, p);
+}
+
+int evt__ssl_op(enum ssl_op_type op, void *buf, int sz)
+{
+    int r = 0;
+    switch ( op ) {
+
+	SSL_OP_HANDSHAKE:
+	r = SSL_do_handshake(c->ssl);
+	if ( r < 0 )
+	    goto handle_error;
+	break;
+
+	SSL_OP_READ:
+	r = SSL_read(c->ssl, buf, sz);
+	if ( r < 0 )
+	    goto handle_error;
+	break;
+
+	SSL_OP_WRITE:
+	r = SSL_write(c->ssl, buf, sz);
+	if ( r < 0 )
+	    goto handle_error;
+	break;
+
+	SSL_OP_SHUTDOWN:
+	r = SSL_shutdown(c->ssl);
+	break;
+
+	default:
+	break;
+    }
+
+    handle_error:
 }
 
 int evt_tls_connect(evt_tls_conn_t *con /*, is callback reqd*/)
@@ -200,7 +228,7 @@ int main()
     simulate_nio(clnt, svc);
     simulate_nio(svc, clnt);
 
-    char msg[] = "Hello Simulated event baed tls engine\n";
+    char msg[] = "Hello Simulated event based tls engine\n";
     int r = SSL_write(svc->ssl, msg, sizeof(msg));
     simulate_nio(svc, clnt);
 
