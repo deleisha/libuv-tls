@@ -15,7 +15,7 @@ tls_client: test_tls_client.c
 new:
 	cd libuv && python gyp_uv.py
 	make -C ./libuv/out
-	clang -g -Wall -o $@ new.c libuv/out/Debug/libuv.a -ldl -lrt -lpthread -lssl -lcrypto
+	clang -g -Wall -o $@ new.c evt_tls.c libuv/out/Debug/libuv.a -ldl -lrt -lpthread -lssl -lcrypto
 
 
 
