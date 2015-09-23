@@ -91,6 +91,9 @@ int main()
 {
     uv_loop_t *loop = uv_default_loop();
 
+    uv_tls_ctx ctx;
+    uv_ctx_init();
+
     int ng = tls_engine_inhale( "server-cert.pem", "server-key.pem", 0);
     assert(ng == 0);
 

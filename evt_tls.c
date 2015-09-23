@@ -11,24 +11,37 @@ static void tls_begin(void)
 }
 
 
-evt_tls_conn_t *getSSL(evt_tls_t *d_eng, evt_tls_conn_t *c)
+evt_tls_conn_t *getSSL(evt_tls_t *d_eng)
 {
-     //d_eng->ctn->ssl  = SSL_new(d_eng->ctx);
-     SSL *ssl  = SSL_new(d_eng->ctx);
-
-     if ( ssl ) {
-	 c->ssl = ssl;
+     evt_tls_conn_t *con = malloc(sizeof(evt_tls_conn_t));
+     if ( !con ) {
+	 return NULL;
      }
 
+     SSL *ssl  = SSL_new(d_eng->ctx);
+
+     if ( !ssl ) {
+	 return NULL;
+     }
+     con->ssl = ssl;
+
      //use default buf size for now.
-     BIO_new_bio_pair(&(c->ssl_bio_), 0, &(c->app_bio_), 0);
+     BIO_new_bio_pair(&(con->ssl_bio_), 0, &(con->app_bio_), 0);
 
-     SSL_set_bio(c->ssl, c->ssl_bio_, c->ssl_bio_);
+     SSL_set_bio(con->ssl, con->ssl_bio_, con->ssl_bio_);
 
-     d_eng->ctn = c;
+     QUEUE_INIT(&(con->q));
+     QUEUE_INSERT_TAIL(&(d_eng->live_con), &(con->q));
 
-     return d_eng->ctn;
+     return con;
 }
+
+
+void evt_tls_set_nio(evt_tls_conn_t *c, int (*fn)(evt_tls_conn_t *t, void *data, int sz))
+{
+    c->meta_hdlr = fn;
+}
+
 #define CERTFILE "server-cert.pem"
 #define KEYFILE "server-key.pem"
 int evt_tls_set_crt_key(evt_tls_t *tls, char *crtf, char *key)
@@ -78,6 +91,8 @@ int evt_tls_init(evt_tls_t *tls)
     tls->cert_set = 0;
     tls->key_set = 0;
     tls->ssl_err_ = 0;
+
+    QUEUE_INIT(&(tls->live_con));
 
     return 0;
 }
@@ -137,11 +152,9 @@ int evt__ssl_op(evt_tls_conn_t *c, enum tls_op_type op, void *buf, int *sz)
     switch ( op ) {
 	case EVT_TLS_OP_HANDSHAKE:
 	r = SSL_do_handshake(c->ssl);
-	if ( r < 0 ) {
-	   bytes = after__wrk(c, tbuf);
-	   if ( c->meta_hdlr)
-	       c->meta_hdlr(c, tbuf, bytes);
-	}
+	bytes = after__wrk(c, tbuf);
+	if ( (bytes > 0) && (c->meta_hdlr))
+	    c->meta_hdlr(c, tbuf, bytes);
 	break;
 
         case EVT_TLS_OP_READ:
@@ -155,8 +168,9 @@ int evt__ssl_op(evt_tls_conn_t *c, enum tls_op_type op, void *buf, int *sz)
 
 	case EVT_TLS_OP_WRITE:
 	r = SSL_write(c->ssl, buf, *sz);
-	if ( r < 0 )
-	    bytes = after__wrk(c, tbuf);
+	bytes = after__wrk(c, tbuf);
+	if ( (bytes > 0) && (c->meta_hdlr))
+	    c->meta_hdlr(c, tbuf, bytes);
 	break;
 
 	case EVT_TLS_OP_SHUTDOWN:
