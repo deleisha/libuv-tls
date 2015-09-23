@@ -27,7 +27,7 @@ typedef struct evt_tls_t {
 } evt_tls_t;
 
 
-typedef struct evt_tls_s
+typedef struct evt_ctx_s
 {
     //find better place for it , should be one time init
     SSL_CTX *ctx;
@@ -54,16 +54,16 @@ enum tls_op_type {
 };
 
 /*configure the tls state machine */
-int evt_tls_init(evt_ctx_t *tls);
+int evt_ctx_init(evt_ctx_t *tls);
 
 /* set the certifcate and key in order */
-int evt_tls_set_crt_key(evt_ctx_t *tls, char *crtf, char *key);
+int evt_ctx_set_crt_key(evt_ctx_t *tls, char *crtf, char *key);
 
 /* test if the certificate */
-int evt_tls_is_crtf_set(evt_ctx_t *t);
+int evt_ctx_is_crtf_set(evt_ctx_t *t);
 
 /* test if the key is set */
-int is_key_set(evt_ctx_t *t);
+int evt_ctx_is_key_set(evt_ctx_t *t);
 
 evt_tls_t *getSSL(evt_ctx_t *d_eng);
 

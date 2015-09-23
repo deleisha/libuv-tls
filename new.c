@@ -48,18 +48,18 @@ int main()
 {
 
     evt_ctx_t tls;
-    assert(0 == evt_tls_init(&tls));
+    assert(0 == evt_ctx_init(&tls));
 
 
-    assert(0 == evt_tls_is_crtf_set(&tls));
-    assert(0 == is_key_set(&tls));
+    assert(0 == evt_ctx_is_crtf_set(&tls));
+    assert(0 == evt_ctx_is_key_set(&tls));
     
-    if (!evt_tls_is_crtf_set(&tls)) {
-	evt_tls_set_crt_key(&tls, "server-cert.pem", "server-key.pem");
+    if (!evt_ctx_is_crtf_set(&tls)) {
+	evt_ctx_set_crt_key(&tls, "server-cert.pem", "server-key.pem");
     }
 
-    assert( 1 == evt_tls_is_crtf_set(&tls));
-    assert( 1 == is_key_set(&tls));
+    assert( 1 == evt_ctx_is_crtf_set(&tls));
+    assert( 1 == evt_ctx_is_key_set(&tls));
 
 
     test_tls_t *clnt_hdl = malloc(sizeof *clnt_hdl);
@@ -87,7 +87,7 @@ int main()
     char msg[] = "Hello Simulated event based tls engine\n";
     int str_len = sizeof(msg);
     int r =  evt_tls_write(clnt_hdl->comm, msg, &str_len);
-    (void)r;
+    r = r;
     
     processed_recv_data(svc_hdl);
 
