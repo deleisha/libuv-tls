@@ -4,7 +4,7 @@
 #include "evt_tls.h"
 
 typedef struct test_tls_s {
-    evt_tls_conn_t *comm;
+    evt_tls_t *comm;
 } test_tls_t;
 
 int test_tls_connect(test_tls_t *t)
@@ -19,7 +19,7 @@ struct my_data {
 }test_data;
 
 //test nio_handler
-int test_nio_hdlr(evt_tls_conn_t *c, void *buf, int sz)
+int test_nio_hdlr(evt_tls_t *c, void *buf, int sz)
 {
     //write to test data as simulation of network write
     memset(&test_data, 0, sizeof(test_data));
@@ -39,7 +39,7 @@ int processed_recv_data(test_tls_t *stream )
     return r;
 }
 
-int evt_tls_write(evt_tls_conn_t *c, void *msg, int *str_len)
+int evt_tls_write(evt_tls_t *c, void *msg, int *str_len)
 {
     return evt__ssl_op(c, EVT_TLS_OP_WRITE, msg, str_len);
 }
@@ -64,14 +64,14 @@ int main()
 
     test_tls_t *clnt_hdl = malloc(sizeof *clnt_hdl);
     assert(clnt_hdl != 0);
-    evt_tls_conn_t *clnt = getSSL(&tls );
+    evt_tls_t *clnt = getSSL(&tls );
     SSL_set_connect_state(clnt->ssl);
     evt_tls_set_nio(clnt, test_nio_hdlr);
 
     clnt_hdl->comm = clnt;
 
 
-    evt_tls_conn_t *svc = getSSL(&tls);
+    evt_tls_t *svc = getSSL(&tls);
     SSL_set_accept_state(svc->ssl);
     test_tls_t *svc_hdl = malloc(sizeof(test_tls_t));
     assert(svc_hdl != 0);

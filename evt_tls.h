@@ -13,18 +13,18 @@ extern "C" {
 
 #include "queue.h"
 
-typedef struct evt_tls_conn_t {
+typedef struct evt_tls_t {
     BIO     *app_bio_; //Our BIO, All IO should be through this
 
     SSL     *ssl;
 
-    int (*meta_hdlr)(struct evt_tls_conn_t *c, void *edata, int len);
+    int (*meta_hdlr)(struct evt_tls_t *c, void *edata, int len);
 
     BIO     *ssl_bio_; //the ssl BIO used only by openSSL
 
     QUEUE q;
 
-} evt_tls_conn_t;
+} evt_tls_t;
 
 
 typedef struct evt_tls_s
@@ -53,16 +53,16 @@ enum tls_op_type {
    ,EVT_TLS_OP_SHUTDOWN
 };
 
-evt_tls_conn_t *getSSL(evt_ctx_t *d_eng);
+evt_tls_t *getSSL(evt_ctx_t *d_eng);
 int evt_tls_set_crt_key(evt_ctx_t *tls, char *crtf, char *key);
 int evt_tls_init(evt_ctx_t *tls);
 int evt_tls_is_crtf_set(evt_ctx_t *t);
 int is_key_set(evt_ctx_t *t);
-int evt_tls_feed_data(evt_tls_conn_t *c, void *data, int sz);
-int after__wrk(evt_tls_conn_t *c, void *buf);
-int evt__ssl_op(evt_tls_conn_t *c, enum tls_op_type op, void *buf, int *sz);
-int evt_tls_connect(evt_tls_conn_t *con /*, is callback reqd*/);
-void evt_tls_set_nio(evt_tls_conn_t *c, int (*fn)(evt_tls_conn_t *t, void *data, int sz));
+int evt_tls_feed_data(evt_tls_t *c, void *data, int sz);
+int after__wrk(evt_tls_t *c, void *buf);
+int evt__ssl_op(evt_tls_t *c, enum tls_op_type op, void *buf, int *sz);
+int evt_tls_connect(evt_tls_t *con /*, is callback reqd*/);
+void evt_tls_set_nio(evt_tls_t *c, int (*fn)(evt_tls_t *t, void *data, int sz));
 
 
 #ifdef __cplusplus 

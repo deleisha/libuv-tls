@@ -11,9 +11,9 @@ static void tls_begin(void)
 }
 
 
-evt_tls_conn_t *getSSL(evt_ctx_t *d_eng)
+evt_tls_t *getSSL(evt_ctx_t *d_eng)
 {
-     evt_tls_conn_t *con = malloc(sizeof(evt_tls_conn_t));
+     evt_tls_t *con = malloc(sizeof(evt_tls_t));
      if ( !con ) {
 	 return NULL;
      }
@@ -37,7 +37,7 @@ evt_tls_conn_t *getSSL(evt_ctx_t *d_eng)
 }
 
 
-void evt_tls_set_nio(evt_tls_conn_t *c, int (*fn)(evt_tls_conn_t *t, void *data, int sz))
+void evt_tls_set_nio(evt_tls_t *c, int (*fn)(evt_tls_t *t, void *data, int sz))
 {
     c->meta_hdlr = fn;
 }
@@ -105,7 +105,7 @@ int is_key_set(evt_ctx_t *t)
     return t->key_set;
 }
 
-int evt_tls_feed_data(evt_tls_conn_t *c, void *data, int sz)
+int evt_tls_feed_data(evt_tls_t *c, void *data, int sz)
 {
     int rv =  BIO_write(c->app_bio_, data, sz);
     assert( rv == sz);
@@ -122,7 +122,7 @@ int evt_tls_feed_data(evt_tls_conn_t *c, void *data, int sz)
     return rv;
 }
 
-int after__wrk(evt_tls_conn_t *c, void *buf)
+int after__wrk(evt_tls_t *c, void *buf)
 {
     int pending = BIO_pending(c->app_bio_);
     if ( !(pending > 0) )
@@ -137,7 +137,7 @@ int after__wrk(evt_tls_conn_t *c, void *buf)
     return p;
 }
 
-int evt__ssl_op(evt_tls_conn_t *c, enum tls_op_type op, void *buf, int *sz)
+int evt__ssl_op(evt_tls_t *c, enum tls_op_type op, void *buf, int *sz)
 {
     int r = 0;
     int bytes = 0;
@@ -178,7 +178,7 @@ int evt__ssl_op(evt_tls_conn_t *c, enum tls_op_type op, void *buf, int *sz)
     return r;
 }
 
-int evt_tls_connect(evt_tls_conn_t *con /*, is callback reqd*/)
+int evt_tls_connect(evt_tls_t *con /*, is callback reqd*/)
 {
     int r = evt__ssl_op(con, EVT_TLS_OP_HANDSHAKE, NULL, NULL);
     return r;
