@@ -42,20 +42,18 @@ void evt_tls_set_nio(evt_tls_conn_t *c, int (*fn)(evt_tls_conn_t *t, void *data,
     c->meta_hdlr = fn;
 }
 
-#define CERTFILE "server-cert.pem"
-#define KEYFILE "server-key.pem"
 int evt_tls_set_crt_key(evt_tls_t *tls, char *crtf, char *key)
 {
     //SSL_CTX_set_verify(tls->ctx, SSL_VERIFY_NONE, uv__tls_verify_peer);
     SSL_CTX_set_verify(tls->ctx, SSL_VERIFY_NONE, NULL);
 
-    int r = SSL_CTX_use_certificate_file(tls->ctx, CERTFILE, SSL_FILETYPE_PEM);
+    int r = SSL_CTX_use_certificate_file(tls->ctx, crtf, SSL_FILETYPE_PEM);
     if(r != 1) {
         return -1;
     }
     tls->cert_set = 1;
 
-    r = SSL_CTX_use_PrivateKey_file(tls->ctx, KEYFILE, SSL_FILETYPE_PEM);
+    r = SSL_CTX_use_PrivateKey_file(tls->ctx, key, SSL_FILETYPE_PEM);
     if(r != 1) {
         return -1;
     }
@@ -132,16 +130,11 @@ int after__wrk(evt_tls_conn_t *c, void *buf)
 
     int p = BIO_read(c->app_bio_, buf, pending);
     assert(p == pending);
+
+    if ( c->meta_hdlr) {
+	    c->meta_hdlr(c, buf, p);
+    }
     return p;
-}
-
-int simulate_nio(evt_tls_conn_t *src, evt_tls_conn_t *dest)
-{
-
-    char buf[16*1024] = {0}; //default size
-    int p = after__wrk(src,  buf);
-    evt_tls_feed_data(dest, buf, p);
-    return 0;
 }
 
 int evt__ssl_op(evt_tls_conn_t *c, enum tls_op_type op, void *buf, int *sz)
@@ -149,12 +142,11 @@ int evt__ssl_op(evt_tls_conn_t *c, enum tls_op_type op, void *buf, int *sz)
     int r = 0;
     int bytes = 0;
     char tbuf[16*1024] = {0};
+
     switch ( op ) {
 	case EVT_TLS_OP_HANDSHAKE:
 	r = SSL_do_handshake(c->ssl);
 	bytes = after__wrk(c, tbuf);
-	if ( (bytes > 0) && (c->meta_hdlr))
-	    c->meta_hdlr(c, tbuf, bytes);
 	break;
 
         case EVT_TLS_OP_READ:
