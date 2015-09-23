@@ -47,7 +47,7 @@ int evt_tls_write(evt_tls_conn_t *c, void *msg, int *str_len)
 int main()
 {
 
-    evt_tls_t tls;
+    evt_ctx_t tls;
     assert(0 == evt_tls_init(&tls));
 
 

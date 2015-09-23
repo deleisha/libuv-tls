@@ -11,7 +11,7 @@ static void tls_begin(void)
 }
 
 
-evt_tls_conn_t *getSSL(evt_tls_t *d_eng)
+evt_tls_conn_t *getSSL(evt_ctx_t *d_eng)
 {
      evt_tls_conn_t *con = malloc(sizeof(evt_tls_conn_t));
      if ( !con ) {
@@ -42,7 +42,7 @@ void evt_tls_set_nio(evt_tls_conn_t *c, int (*fn)(evt_tls_conn_t *t, void *data,
     c->meta_hdlr = fn;
 }
 
-int evt_tls_set_crt_key(evt_tls_t *tls, char *crtf, char *key)
+int evt_tls_set_crt_key(evt_ctx_t *tls, char *crtf, char *key)
 {
     //SSL_CTX_set_verify(tls->ctx, SSL_VERIFY_NONE, uv__tls_verify_peer);
     SSL_CTX_set_verify(tls->ctx, SSL_VERIFY_NONE, NULL);
@@ -67,7 +67,7 @@ int evt_tls_set_crt_key(evt_tls_t *tls, char *crtf, char *key)
 }
 
 
-int evt_tls_init(evt_tls_t *tls)
+int evt_tls_init(evt_ctx_t *tls)
 {
     tls_begin();
 
@@ -95,12 +95,12 @@ int evt_tls_init(evt_tls_t *tls)
     return 0;
 }
 
-int evt_tls_is_crtf_set(evt_tls_t *t)
+int evt_tls_is_crtf_set(evt_ctx_t *t)
 {
     return t->cert_set && t->key_set;
 }
 
-int is_key_set(evt_tls_t *t)
+int is_key_set(evt_ctx_t *t)
 {
     return t->key_set;
 }

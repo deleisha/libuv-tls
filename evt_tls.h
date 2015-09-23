@@ -1,6 +1,11 @@
 #ifndef EVT_TLS_H
 #define EVT_TLS_H
 
+
+#ifdef __cplusplus 
+extern "C" {
+#endif
+
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 #include <openssl/conf.h>
@@ -37,7 +42,7 @@ typedef struct evt_tls_s
     int ssl_err_;
 
     void *live_con[2];
-} evt_tls_t;
+} evt_ctx_t;
 
 
 //supported TLS operation
@@ -48,14 +53,22 @@ enum tls_op_type {
    ,EVT_TLS_OP_SHUTDOWN
 };
 
-evt_tls_conn_t *getSSL(evt_tls_t *d_eng);
-int evt_tls_set_crt_key(evt_tls_t *tls, char *crtf, char *key);
-int evt_tls_init(evt_tls_t *tls);
-int evt_tls_is_crtf_set(evt_tls_t *t);
-int is_key_set(evt_tls_t *t);
+evt_tls_conn_t *getSSL(evt_ctx_t *d_eng);
+int evt_tls_set_crt_key(evt_ctx_t *tls, char *crtf, char *key);
+int evt_tls_init(evt_ctx_t *tls);
+int evt_tls_is_crtf_set(evt_ctx_t *t);
+int is_key_set(evt_ctx_t *t);
 int evt_tls_feed_data(evt_tls_conn_t *c, void *data, int sz);
 int after__wrk(evt_tls_conn_t *c, void *buf);
 int evt__ssl_op(evt_tls_conn_t *c, enum tls_op_type op, void *buf, int *sz);
 int evt_tls_connect(evt_tls_conn_t *con /*, is callback reqd*/);
 void evt_tls_set_nio(evt_tls_conn_t *c, int (*fn)(evt_tls_conn_t *t, void *data, int sz));
+
+
+#ifdef __cplusplus 
+}
+#endif
+
+
+
 #endif //define EVT_TLS_H
