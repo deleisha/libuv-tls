@@ -15,6 +15,7 @@ int test_tls_connect(test_tls_t *t)
 struct my_data {
     char data[16*1024];
     int sz;
+    int stalled;
 }test_data;
 
 //test nio_handler
@@ -24,14 +25,23 @@ int test_nio_hdlr(evt_tls_conn_t *c, void *buf, int sz)
     memset(&test_data, 0, sizeof(test_data));
     memcpy(test_data.data, buf, sz);
     test_data.sz = sz;
+    test_data.stalled = 0;
     return 0;
 }
 
-
-
 int processed_recv_data(test_tls_t *stream )
 {
-    return evt_tls_feed_data(stream->comm, test_data.data, test_data.sz); 
+    int r = 0;
+    if ( !test_data.stalled ) {
+	test_data.stalled = 1;
+	r = evt_tls_feed_data(stream->comm, test_data.data, test_data.sz); 
+    }
+    return r;
+}
+
+int evt_tls_write(evt_tls_conn_t *c, void *msg, int *str_len)
+{
+    return evt__ssl_op(c, EVT_TLS_OP_WRITE, msg, str_len);
 }
 
 int main()
@@ -69,17 +79,14 @@ int main()
     svc_hdl->comm = svc;
 
     test_tls_connect(clnt_hdl);
-    //simulate_nio(clnt, svc);
-    //simulate_nio(svc, clnt);
     processed_recv_data(svc_hdl);
     processed_recv_data(clnt_hdl);
     processed_recv_data(svc_hdl);
     processed_recv_data(clnt_hdl);
 
     char msg[] = "Hello Simulated event based tls engine\n";
-    int str_len = 40;
-    //int r = SSL_write(svc->ssl, msg, sizeof(msg));
-    int r = evt__ssl_op(svc_hdl->comm, EVT_TLS_OP_WRITE, msg, &str_len);
+    int str_len = sizeof(msg);
+    int r =  evt_tls_write(clnt_hdl->comm, msg, &str_len);
     (void)r;
     
     processed_recv_data(svc_hdl);
