@@ -7,9 +7,28 @@ typedef struct test_tls_s {
     evt_tls_t *comm;
 } test_tls_t;
 
-int test_tls_connect(test_tls_t *t)
+
+int evt_tls_write(evt_tls_t *c, void *msg, int *str_len)
 {
-    return evt_tls_connect(t->comm);
+    return evt__ssl_op(c, EVT_TLS_OP_WRITE, msg, str_len);
+}
+
+
+
+void on_connect(evt_tls_t *tls, int status)
+{
+    int r = 0;
+    if ( status ) {
+	char msg[] = "Hello from event based tls engine\n";
+	int str_len = sizeof(msg);
+	r =  evt_tls_write(tls, msg, &str_len);
+    }
+
+}
+
+int test_tls_connect(test_tls_t *t, evt_conn_cb on_connect)
+{
+    return evt_tls_connect(t->comm, on_connect);
 }
 
 struct my_data {
@@ -37,11 +56,6 @@ int processed_recv_data(test_tls_t *stream )
 	r = evt_tls_feed_data(stream->comm, test_data.data, test_data.sz); 
     }
     return r;
-}
-
-int evt_tls_write(evt_tls_t *c, void *msg, int *str_len)
-{
-    return evt__ssl_op(c, EVT_TLS_OP_WRITE, msg, str_len);
 }
 
 int main()
@@ -78,17 +92,13 @@ int main()
     evt_tls_set_nio(svc, test_nio_hdlr);
     svc_hdl->comm = svc;
 
-    test_tls_connect(clnt_hdl);
+    test_tls_connect(clnt_hdl, on_connect);
     processed_recv_data(svc_hdl);
     processed_recv_data(clnt_hdl);
     processed_recv_data(svc_hdl);
     processed_recv_data(clnt_hdl);
 
-    char msg[] = "Hello Simulated event based tls engine\n";
-    int str_len = sizeof(msg);
-    int r =  evt_tls_write(clnt_hdl->comm, msg, &str_len);
-    r = r;
-    
+        
     processed_recv_data(svc_hdl);
 
     free(clnt_hdl);

@@ -1,6 +1,17 @@
 #include <assert.h>
 #include "evt_tls.h"
 
+
+//newer openssl has SSL_is_server API to check if the ssl connection is server
+// Some older versions does not have this function.
+//XXX : remove this function later
+
+int SSL_is_server(const SSL *s)
+{
+    return s->server;
+}
+
+
 static void tls_begin(void)
 {
     SSL_library_init();
@@ -17,6 +28,7 @@ evt_tls_t *getSSL(evt_ctx_t *d_eng)
      if ( !con ) {
 	 return NULL;
      }
+     memset( con, 0, sizeof *con);
 
      SSL *ssl  = SSL_new(d_eng->ctx);
 
@@ -33,13 +45,17 @@ evt_tls_t *getSSL(evt_ctx_t *d_eng)
      QUEUE_INIT(&(con->q));
      QUEUE_INSERT_TAIL(&(d_eng->live_con), &(con->q));
 
+     con->meta_hdlr = NULL;
+
      return con;
 }
 
 
 void evt_tls_set_nio(evt_tls_t *c, int (*fn)(evt_tls_t *t, void *data, int sz))
 {
+    assert(c->meta_hdlr == NULL);
     c->meta_hdlr = fn;
+    assert(c->meta_hdlr != NULL);
 }
 
 int evt_ctx_set_crt_key(evt_ctx_t *tls, char *crtf, char *key)
@@ -144,25 +160,30 @@ int evt__ssl_op(evt_tls_t *c, enum tls_op_type op, void *buf, int *sz)
     char tbuf[16*1024] = {0};
 
     switch ( op ) {
-	case EVT_TLS_OP_HANDSHAKE:
-	r = SSL_do_handshake(c->ssl);
-	bytes = after__wrk(c, tbuf);
-	break;
+	case EVT_TLS_OP_HANDSHAKE: {
+            r = SSL_do_handshake(c->ssl);
+            bytes = after__wrk(c, tbuf);
+	    if  (1 == r) {
+		if (!SSL_is_server(c->ssl)) {
+		    assert(c->connect_cb != NULL );
+		    c->connect_cb(c, r);
+	        }
+		else {
+		    if ( c->accept_cb) {
+		        c->accept_cb(c, r);
+		    }
+		}
+	    }
+	    break;
+        }
 
         case EVT_TLS_OP_READ:
         r = SSL_read(c->ssl, buf, *sz);
-	if ( r < 0 ) {
-            bytes = after__wrk(c, tbuf);
-            if ( c->meta_hdlr)
-                c->meta_hdlr(c, tbuf, bytes);
-        }
 	break;
 
 	case EVT_TLS_OP_WRITE:
 	r = SSL_write(c->ssl, buf, *sz);
 	bytes = after__wrk(c, tbuf);
-	if ( (bytes > 0) && (c->meta_hdlr))
-	    c->meta_hdlr(c, tbuf, bytes);
 	break;
 
 	case EVT_TLS_OP_SHUTDOWN:
@@ -178,10 +199,16 @@ int evt__ssl_op(evt_tls_t *c, enum tls_op_type op, void *buf, int *sz)
     return r;
 }
 
-int evt_tls_connect(evt_tls_t *con /*, is callback reqd*/)
+int evt_tls_connect(evt_tls_t *con, evt_conn_cb on_connect)
 {
-    int r = evt__ssl_op(con, EVT_TLS_OP_HANDSHAKE, NULL, NULL);
-    return r;
+    con->connect_cb = on_connect;
+    return evt__ssl_op(con, EVT_TLS_OP_HANDSHAKE, NULL, NULL);
+}
+
+int evt_tls_accept( evt_tls_t *tls, evt_accept_cb cb)
+{
+    tls->accept_cb = cb;
+    return evt__ssl_op(tls, EVT_TLS_OP_HANDSHAKE, NULL, NULL);
 }
 
 int evt_close();

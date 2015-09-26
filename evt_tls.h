@@ -13,18 +13,26 @@ extern "C" {
 
 #include "queue.h"
 
-typedef struct evt_tls_t {
+
+typedef struct evt_tls_s evt_tls_t;
+
+typedef void (*evt_conn_cb)(evt_tls_t *con, int status);
+typedef void (*evt_accept_cb)(evt_tls_t *con, int status);
+
+struct evt_tls_s {
     BIO     *app_bio_; //Our BIO, All IO should be through this
 
     SSL     *ssl;
 
-    int (*meta_hdlr)(struct evt_tls_t *c, void *edata, int len);
+    int (*meta_hdlr)(evt_tls_t *c, void *edata, int len);
+    evt_conn_cb connect_cb;
+    evt_accept_cb accept_cb;
 
     BIO     *ssl_bio_; //the ssl BIO used only by openSSL
 
     QUEUE q;
 
-} evt_tls_t;
+};
 
 
 typedef struct evt_ctx_s
@@ -70,7 +78,7 @@ evt_tls_t *getSSL(evt_ctx_t *d_eng);
 int evt_tls_feed_data(evt_tls_t *c, void *data, int sz);
 int after__wrk(evt_tls_t *c, void *buf);
 int evt__ssl_op(evt_tls_t *c, enum tls_op_type op, void *buf, int *sz);
-int evt_tls_connect(evt_tls_t *con /*, is callback reqd*/);
+int evt_tls_connect(evt_tls_t *con, evt_conn_cb cb);
 void evt_tls_set_nio(evt_tls_t *c, int (*fn)(evt_tls_t *t, void *data, int sz));
 
 
