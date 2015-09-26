@@ -8,12 +8,11 @@ typedef struct test_tls_s {
 } test_tls_t;
 
 
-int evt_tls_write(evt_tls_t *c, void *msg, int *str_len)
-{
-    return evt__ssl_op(c, EVT_TLS_OP_WRITE, msg, str_len);
-}
-
-
+struct my_data {
+    char data[16*1024];
+    int sz;
+    int stalled;
+}test_data;
 
 void on_connect(evt_tls_t *tls, int status)
 {
@@ -23,19 +22,12 @@ void on_connect(evt_tls_t *tls, int status)
 	int str_len = sizeof(msg);
 	r =  evt_tls_write(tls, msg, &str_len);
     }
-
 }
 
 int test_tls_connect(test_tls_t *t, evt_conn_cb on_connect)
 {
     return evt_tls_connect(t->comm, on_connect);
 }
-
-struct my_data {
-    char data[16*1024];
-    int sz;
-    int stalled;
-}test_data;
 
 //test nio_handler
 int test_nio_hdlr(evt_tls_t *c, void *buf, int sz)
@@ -79,7 +71,6 @@ int main()
     test_tls_t *clnt_hdl = malloc(sizeof *clnt_hdl);
     assert(clnt_hdl != 0);
     evt_tls_t *clnt = getSSL(&tls );
-    SSL_set_connect_state(clnt->ssl);
     evt_tls_set_nio(clnt, test_nio_hdlr);
 
     clnt_hdl->comm = clnt;

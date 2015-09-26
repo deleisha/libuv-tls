@@ -177,9 +177,19 @@ int evt__ssl_op(evt_tls_t *c, enum tls_op_type op, void *buf, int *sz)
 	    break;
         }
 
-        case EVT_TLS_OP_READ:
-        r = SSL_read(c->ssl, buf, *sz);
-	break;
+        case EVT_TLS_OP_READ: {
+            r = SSL_read(c->ssl, tbuf, sizeof(tbuf));
+            //needed in case renegoc is started by peer
+            bytes = after__wrk(c, tbuf);
+	    if ( r > 0 ) {
+                if( c->allocator) {
+		    assert(c->read_cb != NULL);
+                    c->allocator(c, r, buf);
+                    c->read_cb(c, buf, r);
+                }
+            }
+            break;
+	}
 
 	case EVT_TLS_OP_WRITE:
 	r = SSL_write(c->ssl, buf, *sz);
@@ -202,15 +212,34 @@ int evt__ssl_op(evt_tls_t *c, enum tls_op_type op, void *buf, int *sz)
 int evt_tls_connect(evt_tls_t *con, evt_conn_cb on_connect)
 {
     con->connect_cb = on_connect;
+    SSL_set_connect_state(con->ssl);
     return evt__ssl_op(con, EVT_TLS_OP_HANDSHAKE, NULL, NULL);
 }
 
-int evt_tls_accept( evt_tls_t *tls, evt_accept_cb cb)
+int evt_tls_accept( evt_tls_t *tls_svc, evt_accept_cb cb)
 {
-    tls->accept_cb = cb;
-    return evt__ssl_op(tls, EVT_TLS_OP_HANDSHAKE, NULL, NULL);
+    assert(tls_svc != NULL);
+    tls_svc->accept_cb = cb;
+    SSL_set_accept_state(tls_svc->ssl);
+    return evt__ssl_op(tls_svc, EVT_TLS_OP_HANDSHAKE, NULL, NULL);
 }
+
+
+int evt_tls_write(evt_tls_t *c, void *msg, int *str_len)
+{
+    return evt__ssl_op(c, EVT_TLS_OP_WRITE, msg, str_len);
+}
+
+int evt_tls_read(evt_tls_t *c, evt_allocator allok, evt_read_cb on_read )
+{
+    assert(c != NULL);
+    char *msg = NULL;
+    c->allocator = allok;
+    c->read_cb = on_read;
+    return evt__ssl_op(c, EVT_TLS_OP_READ, msg, NULL);
+}
+
 
 int evt_close();
 int evt_force_close();
-//cleaN up calls
+//clean up calls

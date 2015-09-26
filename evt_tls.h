@@ -18,6 +18,9 @@ typedef struct evt_tls_s evt_tls_t;
 
 typedef void (*evt_conn_cb)(evt_tls_t *con, int status);
 typedef void (*evt_accept_cb)(evt_tls_t *con, int status);
+typedef void (*evt_allocator)(evt_tls_t *con, int size, void *buf);
+typedef void (*evt_read_cb)(evt_tls_t *con, void *buf, int size);
+
 
 struct evt_tls_s {
     BIO     *app_bio_; //Our BIO, All IO should be through this
@@ -25,8 +28,12 @@ struct evt_tls_s {
     SSL     *ssl;
 
     int (*meta_hdlr)(evt_tls_t *c, void *edata, int len);
+
     evt_conn_cb connect_cb;
     evt_accept_cb accept_cb;
+
+    evt_allocator allocator;
+    evt_read_cb read_cb;
 
     BIO     *ssl_bio_; //the ssl BIO used only by openSSL
 
@@ -78,8 +85,13 @@ evt_tls_t *getSSL(evt_ctx_t *d_eng);
 int evt_tls_feed_data(evt_tls_t *c, void *data, int sz);
 int after__wrk(evt_tls_t *c, void *buf);
 int evt__ssl_op(evt_tls_t *c, enum tls_op_type op, void *buf, int *sz);
-int evt_tls_connect(evt_tls_t *con, evt_conn_cb cb);
 void evt_tls_set_nio(evt_tls_t *c, int (*fn)(evt_tls_t *t, void *data, int sz));
+
+
+int evt_tls_connect(evt_tls_t *con, evt_conn_cb cb);
+int evt_tls_accept( evt_tls_t *tls, evt_accept_cb cb);
+int evt_tls_write(evt_tls_t *c, void *msg, int *str_len);
+int evt_tls_read(evt_tls_t *c, evt_allocator allok, evt_read_cb on_read );
 
 
 #ifdef __cplusplus 
