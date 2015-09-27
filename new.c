@@ -7,6 +7,10 @@ typedef struct test_tls_s {
     evt_tls_t *comm;
 } test_tls_t;
 
+int test_tls_init(test_tls_t *tst_tls, evt_ctx_t *ctx)
+{
+    return 0;
+}
 
 struct my_data {
     char data[16*1024];
@@ -40,7 +44,7 @@ int test_nio_hdlr(evt_tls_t *c, void *buf, int sz)
     return 0;
 }
 
-int processed_recv_data(test_tls_t *stream )
+int process_recv_data(test_tls_t *stream )
 {
     int r = 0;
     if ( !test_data.stalled ) {
@@ -50,10 +54,15 @@ int processed_recv_data(test_tls_t *stream )
     return r;
 }
 
+int test_tls_accept(evt_tls_t *tls)
+{
+}
+
 int main()
 {
 
     evt_ctx_t tls;
+    memset(&tls, 0, sizeof(tls));
     assert(0 == evt_ctx_init(&tls));
 
 
@@ -68,10 +77,13 @@ int main()
     assert( 1 == evt_ctx_is_key_set(&tls));
 
 
+    assert(tls.writer == NULL);
+    evt_ctx_set_writer(&tls, test_nio_hdlr);
+    assert(tls.writer != NULL);
+
     test_tls_t *clnt_hdl = malloc(sizeof *clnt_hdl);
     assert(clnt_hdl != 0);
     evt_tls_t *clnt = getSSL(&tls );
-    evt_tls_set_nio(clnt, test_nio_hdlr);
 
     clnt_hdl->comm = clnt;
 
@@ -80,17 +92,16 @@ int main()
     SSL_set_accept_state(svc->ssl);
     test_tls_t *svc_hdl = malloc(sizeof(test_tls_t));
     assert(svc_hdl != 0);
-    evt_tls_set_nio(svc, test_nio_hdlr);
     svc_hdl->comm = svc;
 
     test_tls_connect(clnt_hdl, on_connect);
-    processed_recv_data(svc_hdl);
-    processed_recv_data(clnt_hdl);
-    processed_recv_data(svc_hdl);
-    processed_recv_data(clnt_hdl);
+    process_recv_data(svc_hdl);
+    process_recv_data(clnt_hdl);
+    process_recv_data(svc_hdl);
+    process_recv_data(clnt_hdl);
 
         
-    processed_recv_data(svc_hdl);
+    process_recv_data(svc_hdl);
 
     free(clnt_hdl);
     free(svc_hdl);

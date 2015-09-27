@@ -2,11 +2,14 @@
 #include "evt_tls.h"
 
 
-//newer openssl has SSL_is_server API to check if the ssl connection is server
+//openssl 1.0.2 and later has SSL_is_server API to check 
+//if the ssl connection is server or not
 // Some older versions does not have this function.
-//XXX : remove this function later
+// Hence this function is introduced.
 
-int SSL_is_server(const SSL *s)
+// 0 - client
+// 1 - server
+int SSL_get_role(const SSL *s)
 {
     return s->server;
 }
@@ -45,7 +48,7 @@ evt_tls_t *getSSL(evt_ctx_t *d_eng)
      QUEUE_INIT(&(con->q));
      QUEUE_INSERT_TAIL(&(d_eng->live_con), &(con->q));
 
-     con->meta_hdlr = NULL;
+     con->writer = d_eng->writer;
 
      return con;
 }
@@ -53,9 +56,19 @@ evt_tls_t *getSSL(evt_ctx_t *d_eng)
 
 void evt_tls_set_nio(evt_tls_t *c, int (*fn)(evt_tls_t *t, void *data, int sz))
 {
-    assert(c->meta_hdlr == NULL);
-    c->meta_hdlr = fn;
-    assert(c->meta_hdlr != NULL);
+    assert( c != NULL);
+    c->writer = fn;
+    assert(c->writer != NULL);
+}
+
+
+void evt_ctx_set_writer(evt_ctx_t *ctx, net_wrtr my_writer)
+{
+    assert(ctx != NULL);
+    assert( ctx->writer == NULL);
+    ctx->writer = my_writer;
+    assert( ctx->writer != NULL);
+
 }
 
 int evt_ctx_set_crt_key(evt_ctx_t *tls, char *crtf, char *key)
@@ -105,6 +118,7 @@ int evt_ctx_init(evt_ctx_t *tls)
     tls->cert_set = 0;
     tls->key_set = 0;
     tls->ssl_err_ = 0;
+    tls->writer = NULL;
 
     QUEUE_INIT(&(tls->live_con));
 
@@ -131,8 +145,11 @@ int evt_tls_feed_data(evt_tls_t *c, void *data, int sz)
 	rv = evt__ssl_op(c, EVT_TLS_OP_HANDSHAKE, NULL, NULL);
     }
     else {
-	char txt[4096] = {0};
-	rv = SSL_read(c->ssl, txt, sizeof(txt));
+	char txt[16*1024] = {0};
+	//char *txt;
+	//rv = SSL_read(c->ssl, txt, sizeof(txt));
+	int sz = sizeof(txt);
+	rv = evt__ssl_op(c, EVT_TLS_OP_READ, txt, &sz);
 	printf("%s", txt);
     }
     return rv;
@@ -147,8 +164,8 @@ int after__wrk(evt_tls_t *c, void *buf)
     int p = BIO_read(c->app_bio_, buf, pending);
     assert(p == pending);
 
-    if ( c->meta_hdlr) {
-	    c->meta_hdlr(c, buf, p);
+    if ( c->writer) {
+	    c->writer(c, buf, p);
     }
     return p;
 }
@@ -164,30 +181,30 @@ int evt__ssl_op(evt_tls_t *c, enum tls_op_type op, void *buf, int *sz)
             r = SSL_do_handshake(c->ssl);
             bytes = after__wrk(c, tbuf);
 	    if  (1 == r) {
-		if (!SSL_is_server(c->ssl)) {
+		if (!SSL_get_role(c->ssl)) {
 		    assert(c->connect_cb != NULL );
 		    c->connect_cb(c, r);
 	        }
-		else {
-		    if ( c->accept_cb) {
-		        c->accept_cb(c, r);
-		    }
-		}
 	    }
 	    break;
         }
 
         case EVT_TLS_OP_READ: {
             r = SSL_read(c->ssl, tbuf, sizeof(tbuf));
-            //needed in case renegoc is started by peer
             bytes = after__wrk(c, tbuf);
 	    if ( r > 0 ) {
                 if( c->allocator) {
 		    assert(c->read_cb != NULL);
                     c->allocator(c, r, buf);
+		    memcpy(buf, tbuf, r);
                     c->read_cb(c, buf, r);
                 }
+
+		//adhoc code, XXX remove later
+		memcpy(buf, tbuf, r);
+
             }
+
             break;
 	}
 
@@ -216,12 +233,11 @@ int evt_tls_connect(evt_tls_t *con, evt_conn_cb on_connect)
     return evt__ssl_op(con, EVT_TLS_OP_HANDSHAKE, NULL, NULL);
 }
 
-int evt_tls_accept( evt_tls_t *tls_svc, evt_accept_cb cb)
+int evt_tls_accept( evt_tls_t *svc)
 {
-    assert(tls_svc != NULL);
-    tls_svc->accept_cb = cb;
-    SSL_set_accept_state(tls_svc->ssl);
-    return evt__ssl_op(tls_svc, EVT_TLS_OP_HANDSHAKE, NULL, NULL);
+    assert(svc != NULL);
+    SSL_set_accept_state(svc->ssl);
+    return evt__ssl_op(svc, EVT_TLS_OP_HANDSHAKE, NULL, NULL);
 }
 
 

@@ -21,13 +21,16 @@ typedef void (*evt_accept_cb)(evt_tls_t *con, int status);
 typedef void (*evt_allocator)(evt_tls_t *con, int size, void *buf);
 typedef void (*evt_read_cb)(evt_tls_t *con, void *buf, int size);
 
+typedef int (*net_wrtr)(evt_tls_t *con, void *edata, int len);
+
 
 struct evt_tls_s {
     BIO     *app_bio_; //Our BIO, All IO should be through this
 
     SSL     *ssl;
 
-    int (*meta_hdlr)(evt_tls_t *c, void *edata, int len);
+    //network writer used for writing encrypted data
+    net_wrtr writer;
 
     evt_conn_cb connect_cb;
     evt_accept_cb accept_cb;
@@ -57,6 +60,8 @@ typedef struct evt_ctx_s
     int ssl_err_;
 
     void *live_con[2];
+
+    net_wrtr writer;
 } evt_ctx_t;
 
 
@@ -81,6 +86,7 @@ int evt_ctx_is_crtf_set(evt_ctx_t *t);
 int evt_ctx_is_key_set(evt_ctx_t *t);
 
 evt_tls_t *getSSL(evt_ctx_t *d_eng);
+void evt_ctx_set_writer(evt_ctx_t *ctx, net_wrtr my_writer);
 
 int evt_tls_feed_data(evt_tls_t *c, void *data, int sz);
 int after__wrk(evt_tls_t *c, void *buf);
