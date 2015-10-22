@@ -1,5 +1,5 @@
-# THIS REPOSITORY HAS BEEN MARKED AS DEPRECATED, FOR UPDATED WORK, PLEASE REFER 
-https://github.com/deleisha/evt-tls/sample/libuv-tls
+# THIS REPOSITORY HAS BEEN MARKED AS DEPRECATED, FOR UPDATED WORK, PLEASE REFER sample/libuv-tls IN
+https://github.com/deleisha/evt-tls
 # libuv-tls
 Add SSL/TLS functionality on top of libuv using OpenSSL.
 
